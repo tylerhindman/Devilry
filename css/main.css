@@ -1,5 +1,15 @@
 /**********************Generics**********************/
 
+@font-face {
+  font-family: "DOSFont";
+  src: url("../fonts/Perfect DOS VGA 437.ttf");
+}
+
+@font-face {
+  font-family: "DOSFontWin";
+  src: url("../fonts/Perfect DOS VGA 437 Win.ttf");
+}
+
 body {
   width: 100vh;
   height: 100vw;
@@ -10,6 +20,7 @@ body {
   margin: 0;
   padding: 0;
   background-color: #226f99;
+  font-family: "DOSFont";
 }
 
 /*******************Draggable Window*********************/
@@ -46,6 +57,13 @@ body {
   background-color: #d63113;
 }
 
+.draggable-window-title {
+  position: absolute;
+  color: #ffffff;
+  font-size: 30px;
+  font-family: "DOSFont";
+}
+
 .draggable-window-button {
   position: absolute;
   width: 24px;
@@ -79,6 +97,7 @@ body {
   background-color: unset;
   border: unset;
   color: #00FF44;
+  font-family: "DOSFont";
 }
 
 .resize-anchor {
