@@ -19,7 +19,7 @@ body {
   left: 0;
   margin: 0;
   padding: 0;
-  background-color: #226f99;
+  background-color: #208c71;
   font-family: "DOSFont";
 }
 
@@ -28,7 +28,7 @@ body {
 .draggable-window {
   width: 320px;
   height: 550px;
-  border: 3px solid red;
+  border: 3px solid #c7c6c6;
   position: absolute;
   z-index: 0;
 }
@@ -42,25 +42,25 @@ body {
 .draggable-window-background {
   width: 100%;
   height: 100%;
-  background-color: #262421;
-  opacity: 60%;
+  background-color: #000000;
+  opacity: 100%;
 }
 
 .draggable-window-header {
   width: 100%;
   height: 25px;
-  border-bottom: 2px solid red;
+  border-bottom: 2px solid rgb(180, 180, 180);
   display: block;
   position: absolute;
   top: 0;
   left: 0;
-  background-color: #d63113;
+  background-color: #394dcd;
 }
 
 .draggable-window-title {
   position: absolute;
   color: #ffffff;
-  font-size: 30px;
+  font-size: 20px;
   font-family: "DOSFont";
 }
 
@@ -87,7 +87,7 @@ body {
   height: 30px;
   left: 0;
   bottom: 5px;
-  border-top: red solid;
+  border-top: rgb(231, 231, 231) solid;
 }
 
 .draggable-window-input {
@@ -96,7 +96,7 @@ body {
   height: 100%;
   background-color: unset;
   border: unset;
-  color: #00FF44;
+  color: #ffffff;
   font-family: "DOSFont";
 }
 
@@ -120,9 +120,9 @@ body {
 }
 
 .log-entry-meta {
-  color: #00a32c;
+  color: rgb(255, 255, 0)
 }
 
 .log-entry-text {
-  color: #00FF44;
+  color: #ffffff;
 }
