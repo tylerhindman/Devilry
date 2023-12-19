@@ -3,24 +3,38 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <link rel="stylesheet" href="css/main.css">
+  <!-- When we boot, load javascript file-->
   <body onload="devilryStart();">
     <script type="text/javascript" src="js/devilry.js"></script>
 
+    <!--TEMPLATE: Draggable Window-->
     <template id="draggableWindowTemplate">
       <div class="draggable-window" style="top: 50px; left: 50px;">
+        <!--What's inside the window:-->
         <div class="draggable-window-container">
           <div class="draggable-window-background"></div>
+          <!--Top Header Bar-->
           <div class="draggable-window-header">
+            <!--Header Anchor-->
             <div class="draggable-window-container">
+              <!--Window Title-->
+              <span class="draggable-window-title" style="left: 2px;"> DEVILRY </span>
+              <!--Button: Minimize-->
               <button class="draggable-window-button" style="top: 1px; right: 52px; background: url(images/window_minimize_button.png);"/>
+              <!--Button: Maximize-->
               <button class="draggable-window-button" style="top: 1px; right: 27px; background: url(images/window_maximize_button.png);"/>
+              <!--Button: Close-->
               <button class="draggable-window-button" style="top: 1px; right: 2px; background: url(images/window_close_button.png);"/>
             </div>
           </div>
+          <!--Text Log Body-->
           <div class="draggable-window-body"></div>
+          <!--Log Input Footer-->
           <div class="draggable-window-footer">
+            <!--Text Input Field-->
             <input class="draggable-window-input" tabindex="0"/>
           </div>
+          <!--Resize Sprite Anchored at the bottom right-->
           <img src="images/resize.png" class="resize-anchor"/>
         </div>
       </div>
