@@ -65,34 +65,7 @@ function devilryStart(startEvent) {
   let windowInputs = document.querySelectorAll('.draggable-window-input');
   for (let i = 0; i < windowInputs.length; i++) {
     const windowInput = windowInputs.item(i);
-    windowInput.addEventListener('keyup', function(event) {
-      if ((event.key === 'Enter' || event.keyCode === 13) && event.target.value) {
-        const windowBody = windowInput.parentElement.parentElement.querySelector('.draggable-window-body');
-        const p = document.createElement("p");
-        const metaSpan = document.createElement("span");
-        const textSpan = document.createElement("span");
-
-        const currentDate = new Date();
-        let currentHour = new String(currentDate.getHours() > 12 ? currentDate.getHours() - 12 : currentDate.getHours());
-        let currentMinute = new String(currentDate.getMinutes());
-        const currentTime = (currentHour.length == 1 ? '0' + currentHour : currentHour) + ":"
-          + (currentMinute.length == 1 ? '0' + currentMinute : currentMinute)
-          + new String(currentDate.getHours() >= 12 ? 'PM' : 'AM');
-        const metaNode = document.createTextNode('[Dumbpants ' + currentTime + '] ');
-        metaSpan.appendChild(metaNode);
-        metaSpan.className = 'log-entry-meta';
-
-        const textNode = document.createTextNode(event.target.value);
-        textSpan.appendChild(textNode);
-        textSpan.className = 'log-entry-text';
-
-        p.appendChild(metaSpan);
-        p.appendChild(textSpan);
-        p.className = 'log-entry-parent';
-        windowBody.appendChild(p);
-        windowInput.value = '';
-      }
-    });
+    windowInput.addEventListener('keyup', inputTextChat);
   }
 
   // ----- Pull focused window to the top
@@ -120,6 +93,48 @@ function resizeableAnchorMouseMove(event) {
     const parentWindow = resizedAnchor.parentElement.parentElement;
     parentWindow.style.width = (resizedWindowStartX + (event.clientX - resizedMouseStartX)) + 'px';
     parentWindow.style.height = (resizedWindowStartY + (event.clientY - resizedMouseStartY)) + 'px';
+  }
+}
+
+function inputTextChat(event) {
+  if ((event.key === 'Enter' || event.keyCode === 13) && event.target.value) {
+    const windowBody = event.target.parentElement.parentElement.querySelector('.draggable-window-body');
+    // Check for spell triggers first
+    // -- Bless
+    if (event.target.value.trim().includes('cast bless')) {
+      const p = document.createElement("p");
+      p.innerHTML = spells.bless;
+      p.className = 'log-entry-parent log-entry-text';
+      windowBody.appendChild(p);
+
+    // Else, enter into chat normally
+    } else {
+      const p = document.createElement("p");
+      const metaSpan = document.createElement("span");
+      const textSpan = document.createElement("span");
+
+      const currentDate = new Date();
+      let currentHour = new String(currentDate.getHours() > 12 ? currentDate.getHours() - 12 : currentDate.getHours());
+      let currentMinute = new String(currentDate.getMinutes());
+      const currentTime = (currentHour.length == 1 ? '0' + currentHour : currentHour) + ":"
+        + (currentMinute.length == 1 ? '0' + currentMinute : currentMinute)
+        + new String(currentDate.getHours() >= 12 ? 'PM' : 'AM');
+      const metaNode = document.createTextNode('[Dumbpants ' + currentTime + '] ');
+      metaSpan.appendChild(metaNode);
+      metaSpan.className = 'log-entry-meta';
+
+      const textNode = document.createTextNode(event.target.value);
+      textSpan.appendChild(textNode);
+      textSpan.className = 'log-entry-text';
+
+      p.appendChild(metaSpan);
+      p.appendChild(textSpan);
+      p.className = 'log-entry-parent';
+      windowBody.appendChild(p);
+    }
+
+    event.target.value = '';
+    windowBody.scrollTo(0, windowBody.scrollHeight);
   }
 }
 
