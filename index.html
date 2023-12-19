@@ -7,6 +7,7 @@
   <body onload="devilryStart();">
     <script type="text/javascript" src="js/devilry.js"></script>
 
+    <!--TEMPLATE: Draggable Window-->
     <template id="draggableWindowTemplate">
       <div class="draggable-window" style="top: 50px; left: 50px;">
         <!--What's inside the window:-->
@@ -23,10 +24,14 @@
               <button class="draggable-window-button" style="top: 1px; right: 2px; background: url(images/window_close_button.png);"/>
             </div>
           </div>
+          <!--Text Log Body-->
           <div class="draggable-window-body"></div>
+          <!--Log Input Footer-->
           <div class="draggable-window-footer">
+            <!--Text Input Field-->
             <input class="draggable-window-input" tabindex="0"/>
           </div>
+          <!--Resize Sprite Anchored at the bottom right-->
           <img src="images/resize.png" class="resize-anchor"/>
         </div>
       </div>
