@@ -5,6 +5,8 @@
   <link rel="stylesheet" href="css/main.css">
   <!-- When we boot, load javascript file-->
   <body onload="devilryStart();">
+    <script type="text/javascript" src="js/util.js"></script>
+    <script type="text/javascript" src="js/data/spells.js"></script>
     <script type="text/javascript" src="js/devilry.js"></script>
 
     <!--TEMPLATE: Draggable Window-->
@@ -20,7 +22,7 @@
               <!--Window Title-->
               <span class="draggable-window-title" style="top: 4px; left: 2px;"> DEVILRY.exe </span>
               <!--Button: Minimize-->
-              <button class="draggable-window-button" style="top: 1px; right: 52px; background: url(images/window_minimize_button.png);"/>
+              <button class="draggable-window-button" onclick="minimizeClicked(event);" style="top: 1px; right: 52px; background: url(images/window_minimize_button.png);"/>
               <!--Button: Maximize-->
               <button class="draggable-window-button" style="top: 1px; right: 27px; background: url(images/window_maximize_button.png);"/>
               <!--Button: Close-->

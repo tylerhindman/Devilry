@@ -12,6 +12,10 @@ let zIndexCounter = 0;
 let currentlyFocusedWindow = null;
 
 const initWindows = 4;
+const spellRandomChatTimeMin = 5;
+const spellRandomChatTimeMax = 25;
+const spellRandomCharMin = 8;
+const spellRandomCharMax = 16;
 
 function devilryStart(startEvent) {
   // ---------- Init window setup
@@ -28,6 +32,7 @@ function devilryStart(startEvent) {
   let draggableWindows = document.querySelectorAll('.draggable-window');
   windowsList = draggableWindows;
   for (let i = 0; i < draggableWindows.length; i++) {
+    draggableWindows.item(i).setAttribute('minimized', 'false');
     const currWindow = draggableWindows.item(i).querySelector('.draggable-window-header');
     currWindow.addEventListener('mousedown', function (event) {
       if (draggedWindow == null && resizedAnchor == null) {
@@ -64,34 +69,7 @@ function devilryStart(startEvent) {
   let windowInputs = document.querySelectorAll('.draggable-window-input');
   for (let i = 0; i < windowInputs.length; i++) {
     const windowInput = windowInputs.item(i);
-    windowInput.addEventListener('keyup', function(event) {
-      if ((event.key === 'Enter' || event.keyCode === 13) && event.target.value) {
-        const windowBody = windowInput.parentElement.parentElement.querySelector('.draggable-window-body');
-        const p = document.createElement("p");
-        const metaSpan = document.createElement("span");
-        const textSpan = document.createElement("span");
-
-        const currentDate = new Date();
-        let currentHour = new String(currentDate.getHours() > 12 ? currentDate.getHours() - 12 : currentDate.getHours());
-        let currentMinute = new String(currentDate.getMinutes());
-        const currentTime = (currentHour.length == 1 ? '0' + currentHour : currentHour) + ":"
-          + (currentMinute.length == 1 ? '0' + currentMinute : currentMinute)
-          + new String(currentDate.getHours() >= 12 ? 'PM' : 'AM');
-        const metaNode = document.createTextNode('[Dumbpants ' + currentTime + '] ');
-        metaSpan.appendChild(metaNode);
-        metaSpan.className = 'log-entry-meta';
-
-        const textNode = document.createTextNode(event.target.value);
-        textSpan.appendChild(textNode);
-        textSpan.className = 'log-entry-text';
-
-        p.appendChild(metaSpan);
-        p.appendChild(textSpan);
-        p.className = 'log-entry-parent';
-        windowBody.appendChild(p);
-        windowInput.value = '';
-      }
-    });
+    windowInput.addEventListener('keyup', inputTextChat);
   }
 
   // ----- Pull focused window to the top
@@ -119,5 +97,81 @@ function resizeableAnchorMouseMove(event) {
     const parentWindow = resizedAnchor.parentElement.parentElement;
     parentWindow.style.width = (resizedWindowStartX + (event.clientX - resizedMouseStartX)) + 'px';
     parentWindow.style.height = (resizedWindowStartY + (event.clientY - resizedMouseStartY)) + 'px';
+  }
+}
+
+function inputTextChat(event) {
+  if ((event.key === 'Enter' || event.keyCode === 13) && event.target.value) {
+    const windowBody = event.target.parentElement.parentElement.querySelector('.draggable-window-body');
+    // Check for spell triggers first
+    // -- Bless
+    if (event.target.value.trim().includes('cast bless')) {
+      const p = document.createElement("p");
+      p.className = 'log-entry-parent log-entry-spell';
+      windowBody.appendChild(p);
+      spellDelayedAdd({spell: spells.bless}, p, windowBody);
+
+    // Else, enter into chat normally
+    } else {
+      const p = document.createElement("p");
+      const metaSpan = document.createElement("span");
+      const textSpan = document.createElement("span");
+
+      const currentDate = new Date();
+      let currentHour = new String(currentDate.getHours() > 12 ? currentDate.getHours() - 12 : currentDate.getHours());
+      let currentMinute = new String(currentDate.getMinutes());
+      const currentTime = (currentHour.length == 1 ? '0' + currentHour : currentHour) + ":"
+        + (currentMinute.length == 1 ? '0' + currentMinute : currentMinute)
+        + new String(currentDate.getHours() >= 12 ? 'PM' : 'AM');
+      const metaNode = document.createTextNode('[Dumbpants ' + currentTime + '] ');
+      metaSpan.appendChild(metaNode);
+      metaSpan.className = 'log-entry-meta';
+
+      const textNode = document.createTextNode(event.target.value);
+      textSpan.appendChild(textNode);
+      textSpan.className = 'log-entry-text';
+
+      p.appendChild(metaSpan);
+      p.appendChild(textSpan);
+      p.className = 'log-entry-parent';
+      windowBody.appendChild(p);
+    }
+
+    event.target.value = '';
+    windowBody.scrollTo(0, windowBody.scrollHeight);
+  }
+}
+
+function spellDelayedAdd(textObj, paragraphElement, windowBody) {
+  let text = textObj.spell;
+  if (text.length > 0) {
+    //let randomCharAmount = Math.floor(Math.random() * (spellRandomCharMax - spellRandomCharMin));
+    let randomCharAmount = text.indexOf("<br>") != -1 ? text.indexOf("<br>") + 4 : text.length;
+    randomCharAmount = randomCharAmount <= text.length - 1 ? randomCharAmount : text.length; 
+    paragraphElement.innerHTML += text.substring(0, randomCharAmount);
+    textObj.spell = text.substring(randomCharAmount);
+    setTimeout(() => {
+      spellDelayedAdd(textObj, paragraphElement, windowBody)
+    }, Math.random() * (spellRandomChatTimeMax - spellRandomChatTimeMin));
+    windowBody.scrollTo(0, windowBody.scrollHeight);
+  }
+}
+
+function minimizeClicked(event) {
+  const parentWindow = event.target.parentElement.parentElement.parentElement.parentElement;
+  if (parentWindow.getAttribute('minimized') == 'false') {
+    parentWindow.setAttribute('minimized', parentWindow.style.height);
+    parentWindow.querySelector('.draggable-window-body').style.display = 'none';
+    parentWindow.querySelector('.draggable-window-footer').style.display = 'none';
+    parentWindow.querySelector('.resize-anchor').style.display = 'none';
+    parentWindow.querySelector('.draggable-window-background').style.display = 'none';
+    parentWindow.style.height = '25px';
+  } else {
+    parentWindow.querySelector('.draggable-window-body').style.display = 'block';
+    parentWindow.querySelector('.draggable-window-footer').style.display = 'block';
+    parentWindow.querySelector('.resize-anchor').style.display = 'block';
+    parentWindow.querySelector('.draggable-window-background').style.display = 'block';
+    parentWindow.style.height = parentWindow.getAttribute('minimized');
+    parentWindow.setAttribute('minimized', 'false');
   }
 }
