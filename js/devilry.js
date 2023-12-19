@@ -110,6 +110,13 @@ function inputTextChat(event) {
       p.className = 'log-entry-parent log-entry-spell';
       windowBody.appendChild(p);
       spellDelayedAdd({spell: spells.bless}, p, windowBody);
+    }
+// -- RoomTest
+      else if (event.target.value.trim().includes('cast room')) {
+        const p = document.createElement("p");
+        p.className = 'log-entry-parent log-entry-spell';
+        windowBody.appendChild(p);
+        spellDelayedAdd({spell: rooms.castle_NESW}, p, windowBody);
 
     // Else, enter into chat normally
     } else {
