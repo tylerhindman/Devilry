@@ -126,3 +126,7 @@ body {
 .log-entry-text {
   color: #ffffff;
 }
+
+.log-entry-spell {
+  color:rgb(197, 5, 5);
+}

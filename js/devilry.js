@@ -12,6 +12,10 @@ let zIndexCounter = 0;
 let currentlyFocusedWindow = null;
 
 const initWindows = 4;
+const spellRandomChatTimeMin = 5;
+const spellRandomChatTimeMax = 25;
+const spellRandomCharMin = 8;
+const spellRandomCharMax = 16;
 
 function devilryStart(startEvent) {
   // ---------- Init window setup
@@ -103,9 +107,9 @@ function inputTextChat(event) {
     // -- Bless
     if (event.target.value.trim().includes('cast bless')) {
       const p = document.createElement("p");
-      p.innerHTML = spells.bless;
-      p.className = 'log-entry-parent log-entry-text';
+      p.className = 'log-entry-parent log-entry-spell';
       windowBody.appendChild(p);
+      spellDelayedAdd({spell: spells.bless}, p, windowBody);
 
     // Else, enter into chat normally
     } else {
@@ -134,6 +138,21 @@ function inputTextChat(event) {
     }
 
     event.target.value = '';
+    windowBody.scrollTo(0, windowBody.scrollHeight);
+  }
+}
+
+function spellDelayedAdd(textObj, paragraphElement, windowBody) {
+  let text = textObj.spell;
+  if (text.length > 0) {
+    //let randomCharAmount = Math.floor(Math.random() * (spellRandomCharMax - spellRandomCharMin));
+    let randomCharAmount = text.indexOf("<br>") != -1 ? text.indexOf("<br>") + 4 : text.length;
+    randomCharAmount = randomCharAmount <= text.length - 1 ? randomCharAmount : text.length; 
+    paragraphElement.innerHTML += text.substring(0, randomCharAmount);
+    textObj.spell = text.substring(randomCharAmount);
+    setTimeout(() => {
+      spellDelayedAdd(textObj, paragraphElement, windowBody)
+    }, Math.random() * (spellRandomChatTimeMax - spellRandomChatTimeMin));
     windowBody.scrollTo(0, windowBody.scrollHeight);
   }
 }
