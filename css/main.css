@@ -1,0 +1,109 @@
+/**********************Generics**********************/
+
+body {
+  width: 100vh;
+  height: 100vw;
+  display: block;
+  position: fixed;
+  top: 0;
+  left: 0;
+  margin: 0;
+  padding: 0;
+  background-color: #226f99;
+}
+
+/*******************Draggable Window*********************/
+
+.draggable-window {
+  width: 320px;
+  height: 550px;
+  border: 3px solid red;
+  position: absolute;
+  z-index: 0;
+}
+
+.draggable-window-container {
+  width: 100%;
+  height: 100%;
+  position: relative;
+}
+
+.draggable-window-background {
+  width: 100%;
+  height: 100%;
+  background-color: #262421;
+  opacity: 60%;
+}
+
+.draggable-window-header {
+  width: 100%;
+  height: 25px;
+  border-bottom: 2px solid red;
+  display: block;
+  position: absolute;
+  top: 0;
+  left: 0;
+  background-color: #d63113;
+}
+
+.draggable-window-button {
+  position: absolute;
+  width: 24px;
+  height: 24px;
+  border-width: 2px;
+}
+
+.draggable-window-body {
+  width: calc(100% - 14px);
+  height: calc(100% - 79px);
+  position: absolute;
+  top: 28px;
+  left: 0;
+  padding: 7px 7px;
+  overflow-y: auto;
+}
+
+.draggable-window-footer {
+  position: absolute;
+  width: 100%;
+  height: 30px;
+  left: 0;
+  bottom: 5px;
+  border-top: red solid;
+}
+
+.draggable-window-input {
+  position: relative;
+  width: calc(100% - 8px);
+  height: 100%;
+  background-color: unset;
+  border: unset;
+  color: #00FF44;
+}
+
+.resize-anchor {
+  left: calc(100% - 20px);
+  bottom: 20px;
+  position: relative;
+  -webkit-user-drag: none;
+  user-select: none;
+  -moz-user-select: none;
+  -webkit-user-select: none;
+  -ms-user-select: none;
+  cursor: se-resize;
+}
+
+/*************Log entries / text*****************/
+
+.log-entry-parent {
+  margin-block-start: 2px;
+  margin-block-end: 0px;
+}
+
+.log-entry-meta {
+  color: #00a32c;
+}
+
+.log-entry-text {
+  color: #00FF44;
+}

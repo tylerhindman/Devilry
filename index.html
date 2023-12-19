@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="css/main.css">
+  <body onload="devilryStart();">
+    <script type="text/javascript" src="js/devilry.js"></script>
+
+    <template id="draggableWindowTemplate">
+      <div class="draggable-window" style="top: 50px; left: 50px;">
+        <div class="draggable-window-container">
+          <div class="draggable-window-background"></div>
+          <div class="draggable-window-header">
+            <div class="draggable-window-container">
+              <button class="draggable-window-button" style="top: 1px; right: 52px; background: url(images/window_minimize_button.png);"/>
+              <button class="draggable-window-button" style="top: 1px; right: 27px; background: url(images/window_maximize_button.png);"/>
+              <button class="draggable-window-button" style="top: 1px; right: 2px; background: url(images/window_close_button.png);"/>
+            </div>
+          </div>
+          <div class="draggable-window-body"></div>
+          <div class="draggable-window-footer">
+            <input class="draggable-window-input" tabindex="0"/>
+          </div>
+          <img src="images/resize.png" class="resize-anchor"/>
+        </div>
+      </div>
+    </template>
+
+  </body>
+</html>
