@@ -28,6 +28,7 @@ function devilryStart(startEvent) {
   let draggableWindows = document.querySelectorAll('.draggable-window');
   windowsList = draggableWindows;
   for (let i = 0; i < draggableWindows.length; i++) {
+    draggableWindows.item(i).setAttribute('minimized', 'false');
     const currWindow = draggableWindows.item(i).querySelector('.draggable-window-header');
     currWindow.addEventListener('mousedown', function (event) {
       if (draggedWindow == null && resizedAnchor == null) {
@@ -119,5 +120,24 @@ function resizeableAnchorMouseMove(event) {
     const parentWindow = resizedAnchor.parentElement.parentElement;
     parentWindow.style.width = (resizedWindowStartX + (event.clientX - resizedMouseStartX)) + 'px';
     parentWindow.style.height = (resizedWindowStartY + (event.clientY - resizedMouseStartY)) + 'px';
+  }
+}
+
+function minimizeClicked(event) {
+  const parentWindow = event.target.parentElement.parentElement.parentElement.parentElement;
+  if (parentWindow.getAttribute('minimized') == 'false') {
+    parentWindow.setAttribute('minimized', parentWindow.style.height);
+    parentWindow.querySelector('.draggable-window-body').style.display = 'none';
+    parentWindow.querySelector('.draggable-window-footer').style.display = 'none';
+    parentWindow.querySelector('.resize-anchor').style.display = 'none';
+    parentWindow.querySelector('.draggable-window-background').style.display = 'none';
+    parentWindow.style.height = '25px';
+  } else {
+    parentWindow.querySelector('.draggable-window-body').style.display = 'block';
+    parentWindow.querySelector('.draggable-window-footer').style.display = 'block';
+    parentWindow.querySelector('.resize-anchor').style.display = 'block';
+    parentWindow.querySelector('.draggable-window-background').style.display = 'block';
+    parentWindow.style.height = parentWindow.getAttribute('minimized');
+    parentWindow.setAttribute('minimized', 'false');
   }
 }
