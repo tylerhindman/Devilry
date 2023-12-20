@@ -12,7 +12,7 @@
 
     <!--TEMPLATE: Draggable Window-->
     <template id="draggableWindowTemplate">
-      <div class="draggable-window" style="top: 50px; left: 50px;">
+      <div class="draggable-window" style="top: 50px; left: 50px;" minimized="false" maximized="false" closed="true">
         <!--What's inside the window:-->
         <div class="draggable-window-container">
           <div class="draggable-window-background"></div>
@@ -25,9 +25,9 @@
               <!--Button: Minimize-->
               <button class="draggable-window-button" onclick="minimizeClicked(event);" style="top: 1px; right: 52px; background: url(images/window_minimize_button.png);"/>
               <!--Button: Maximize-->
-              <button class="draggable-window-button" style="top: 1px; right: 27px; background: url(images/window_maximize_button.png);"/>
+              <button class="draggable-window-button" onclick="maximizeClicked(event);" style="top: 1px; right: 27px; background: url(images/window_maximize_button.png);"/>
               <!--Button: Close-->
-              <button class="draggable-window-button" style="top: 1px; right: 2px; background: url(images/window_close_button.png);"/>
+              <button class="draggable-window-button" onclick="closeClicked(event);" style="top: 1px; right: 2px; background: url(images/window_close_button.png);"/>
             </div>
           </div>
           <!--Text Log Body-->
@@ -42,6 +42,27 @@
         </div>
       </div>
     </template>
+
+    <div class="icons-container">
+      <div class="icon" id="global-chat-icon" ondblclick="iconClicked(event, 'globalChat');" style="top: 10px; left: 10px;">
+        <div class="icons-container">
+          <img class="icon-image" src="./images/global_chat_icon.png"/>
+          <p class="icon-name">GLOBAL_CHAT</p>
+        </div>
+      </div>
+      <div class="icon" id="local-chat-icon" ondblclick="iconClicked(event, 'localChat');" style="top: 160px; left: 10px;">
+        <div class="icons-container">
+          <img class="icon-image" src="./images/global_chat_icon.png"/>
+          <p class="icon-name">LOCAL_CHAT</p>
+        </div>
+      </div>
+      <div class="icon" id="mind-icon" ondblclick="iconClicked(event, 'mind');" style="top: 300px; left: 10px;">
+        <div class="icons-container">
+          <img class="icon-image" src="./images/global_chat_icon.png"/>
+          <p class="icon-name">MIND</p>
+        </div>
+      </div>
+    </div>
 
   </body>
 </html>

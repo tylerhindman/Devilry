@@ -11,8 +11,8 @@
 }
 
 body {
-  width: 100vh;
-  height: 100vw;
+  width: 100vw;
+  height: 100vh;
   display: block;
   position: fixed;
   top: 0;
@@ -30,7 +30,7 @@ body {
   height: 550px;
   border: 3px solid #c7c6c6;
   position: absolute;
-  z-index: 0;
+  z-index: 10;
 }
 
 .draggable-window-container {
@@ -62,6 +62,11 @@ body {
   color: #ffffff;
   font-size: 20px;
   font-family: "DOSFont";
+  -webkit-user-drag: none;
+  user-select: none;
+  -moz-user-select: none;
+  -webkit-user-select: none;
+  -ms-user-select: none;
 }
 
 .draggable-window-button {
@@ -129,4 +134,36 @@ body {
 
 .log-entry-spell {
   color:rgb(197, 5, 5);
+}
+
+/****************Icons****************************/
+
+.icons-container {
+  width: 100%;
+  height: 100%;
+  position: relative;
+  z-index: 0;
+}
+
+.icon {
+  width: 100px;
+  height: 120px;
+  position: absolute;
+  margin: 5px;
+  -webkit-user-drag: none;
+  user-select: none;
+  -moz-user-select: none;
+  -webkit-user-select: none;
+  -ms-user-select: none;
+}
+
+.icon-image {
+  width: 100%;
+  height: 100px;
+  position: relative;
+}
+
+.icon-name {
+  margin-block-start: unset;
+  margin-block-end: unset;
 }
