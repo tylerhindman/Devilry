@@ -1,0 +1,7 @@
+######## Setup ########
+- install nodejs (from internet)
+- run 'npm install' (from terminal)
+- in .vscode/launch.json, set your file path configuration to '\client\dist\index.html' (prefix with your own path)
+
+######## Build ########
+- run 'npm run build'
