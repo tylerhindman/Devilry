@@ -1,5 +1,5 @@
 import { initializeApp } from "firebase/app";
-import { getDatabase, ref, set, onValue } from "firebase/database";
+import { getDatabase, ref, set, onValue, orderByChild, query } from "firebase/database";
 
 // TODO: Replace the following with your app's Firebase project configuration
 // See: https://firebase.google.com/docs/web/learn-more#config-object
@@ -22,12 +22,13 @@ export function writeMessage (name, message, messageNumber) {
   const db = getDatabase();
   set(ref(db, 'messages/one/m' + globalMessageNumber++), {
     username: name,
-    message: message
+    message: message,
+    timestamp: Date.now()
   });
 }
 
 export function setDBMessageListener (roomName, listenerFunction) {
-  const messageRef = ref(db, 'messages/one');
+  const messageRef = query(ref(db, 'messages/one'), orderByChild('timestamp'));
   onValue(messageRef, (snapshot) => {
     listenerFunction(snapshot);
   });

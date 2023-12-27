@@ -21,6 +21,16 @@ const spellRandomChatTimeMax = 25;
 const spellRandomCharMin = 8;
 const spellRandomCharMax = 16;
 
+// Chat window references
+let globalChatElementRef = null;
+let localChatElementRef = null;
+let mindChatElementRef = null;
+
+// Chat message log snapshots
+let globalChatLogSnapshot = null;
+let localChatLogSnapshot = null;
+let mindChatLogSnapshot = null;
+
 function devilryStart() {
   // ---------- Set listeners for icon buttons
   const globalChatIcon = document.querySelector('#global-chat-icon');
@@ -48,14 +58,17 @@ function devilryStart() {
       case 0:
         newWindowElement.id = 'chat-window-global';
         newWindowElement.querySelector('.draggable-window-title').textContent = 'GLOBAL_CHAT';
+        globalChatElementRef = newWindowElement;
         break;
       case 1:
         newWindowElement.id = 'chat-window-local';
         newWindowElement.querySelector('.draggable-window-title').textContent = 'LOCAL_CHAT';
+        localChatElementRef = newWindowElement;
         break;
       case 2:
         newWindowElement.id = 'chat-window-mind';
         newWindowElement.querySelector('.draggable-window-title').textContent = 'MIND';
+        mindChatElementRef = newWindowElement;
         break;
     }
 
@@ -131,7 +144,7 @@ function devilryStart() {
   }
 
   // ----- Pull focused window to the top
-  for (var i = 0; i < windowsList.length; i++) {
+  for (let i = 0; i < windowsList.length; i++) {
     const focusedWindow = windowsList.item(i);
     focusedWindow.addEventListener('mousedown', function (event) {
       if (currentlyFocusedWindow == null || currentlyFocusedWindow.id != focusedWindow.id) {
@@ -146,8 +159,9 @@ function devilryStart() {
     });
   }
 
+  // ----- Set message listener for global chat window
   firebaseUtil.setDBMessageListener('one', function (snapshot) {
-    console.log(snapshot.val());
+    globalChatUpdate(snapshot);
   });
 }
 
@@ -172,58 +186,67 @@ function resizeableAnchorMouseMove(event) {
   }
 }
 
+function processNewTextElement(windowBody, value) {
+  // Check for spell triggers first
+  // -- Bless
+  if (value.trim().includes('cast bless')) {
+    const p = document.createElement("p");
+    p.className = 'log-entry-parent log-entry-spell';
+    windowBody.appendChild(p);
+    spellDelayedAdd({spell: spells.spells.bless}, p, windowBody);
+
+  // -- RoomTest
+  } else if (value.trim().includes('cast room')) {
+    const p = document.createElement("p");
+    p.className = 'log-entry-parent log-entry-spell';
+    windowBody.appendChild(p);
+    spellDelayedAdd({spell: rooms.rooms.castle_NESW}, p, windowBody);
+
+  // Else, enter into chat normally
+  } else {
+    const p = document.createElement("p");
+    const metaSpan = document.createElement("span");
+    const textSpan = document.createElement("span");
+
+    const currentDate = new Date();
+    let currentHour = new String(currentDate.getHours() > 12 ? currentDate.getHours() - 12 : currentDate.getHours());
+    let currentMinute = new String(currentDate.getMinutes());
+    const currentTime = (currentHour.length == 1 ? '0' + currentHour : currentHour) + ":"
+      + (currentMinute.length == 1 ? '0' + currentMinute : currentMinute)
+      + new String(currentDate.getHours() >= 12 ? 'PM' : 'AM');
+    const metaNode = document.createTextNode('[Dumbpants ' + currentTime + '] ');
+    metaSpan.appendChild(metaNode);
+    metaSpan.className = 'log-entry-meta';
+
+    const textNode = document.createTextNode(value);
+    textSpan.appendChild(textNode);
+    textSpan.className = 'log-entry-text';
+
+    p.appendChild(metaSpan);
+    p.appendChild(textSpan);
+    p.className = 'log-entry-parent';
+    windowBody.appendChild(p);
+  }
+
+  windowBody.scrollTo(0, windowBody.scrollHeight);
+}
+
 function inputTextChat(event) {
   if ((event.key === 'Enter' || event.keyCode === 13) && event.target.value) {
-    var message = '';
-    const windowBody = event.target.parentElement.parentElement.querySelector('.draggable-window-body');
-    // Check for spell triggers first
-    // -- Bless
+    // Translate spell values for database
+    let message = event.target.value;
     if (event.target.value.trim().includes('cast bless')) {
-      const p = document.createElement("p");
-      p.className = 'log-entry-parent log-entry-spell';
-      windowBody.appendChild(p);
-      spellDelayedAdd({spell: spells.spells.bless}, p, windowBody);
       message = 'spell:bless';
-
-    // -- RoomTest
     } else if (event.target.value.trim().includes('cast room')) {
-      const p = document.createElement("p");
-      p.className = 'log-entry-parent log-entry-spell';
-      windowBody.appendChild(p);
-      spellDelayedAdd({spell: rooms.rooms.castle_NESW}, p, windowBody);
       message = 'spell:room';
-
-    // Else, enter into chat normally
-    } else {
-      const p = document.createElement("p");
-      const metaSpan = document.createElement("span");
-      const textSpan = document.createElement("span");
-
-      const currentDate = new Date();
-      let currentHour = new String(currentDate.getHours() > 12 ? currentDate.getHours() - 12 : currentDate.getHours());
-      let currentMinute = new String(currentDate.getMinutes());
-      const currentTime = (currentHour.length == 1 ? '0' + currentHour : currentHour) + ":"
-        + (currentMinute.length == 1 ? '0' + currentMinute : currentMinute)
-        + new String(currentDate.getHours() >= 12 ? 'PM' : 'AM');
-      const metaNode = document.createTextNode('[Dumbpants ' + currentTime + '] ');
-      metaSpan.appendChild(metaNode);
-      metaSpan.className = 'log-entry-meta';
-
-      const textNode = document.createTextNode(event.target.value);
-      textSpan.appendChild(textNode);
-      textSpan.className = 'log-entry-text';
-
-      p.appendChild(metaSpan);
-      p.appendChild(textSpan);
-      p.className = 'log-entry-parent';
-      windowBody.appendChild(p);
-
-      message = event.target.value;
     }
 
+    // Clear text field
     event.target.value = '';
+    // Write to database
     firebaseUtil.writeMessage('Dumbpants', message, 1);
-    windowBody.scrollTo(0, windowBody.scrollHeight);
+    // Add element to chat window
+    processNewTextElement(event.target.parentElement.parentElement.querySelector('.draggable-window-body'), event.target.value);
   }
 }
 
@@ -344,6 +367,42 @@ function iconClicked(event, iconName) {
     } else if (selectedWindow.getAttribute('maximized') !== 'false') {
       maximizeWindow(selectedWindow, 'restore');
     }
+  }
+}
+
+function globalChatUpdate(snapshot) {
+  // Only update if data exists
+  if (snapshot.exists()) {
+    const snapshotVal = snapshot.val();
+    // Update chat log with new entries only
+    if (globalChatLogSnapshot) {
+      let messageVal = snapshotVal[Object.keys(snapshotVal)[Object.keys(snapshotVal).length - 1]].message;
+      switch(messageVal) {
+        case 'spell:bless':
+          messageVal = 'cast bless';
+          break;
+        case 'spell:room':
+          messageVal = 'cast room';
+          break;
+      }
+      processNewTextElement(globalChatElementRef.querySelector('.draggable-window-body'), messageVal);
+    // Loading for first time
+    } else {
+      for (const log in snapshotVal) {
+        let messageVal = snapshotVal[log].message;
+        switch(messageVal) {
+          case 'spell:bless':
+            messageVal = 'cast bless';
+            break;
+          case 'spell:room':
+            messageVal = 'cast room';
+            break;
+        }
+        processNewTextElement(globalChatElementRef.querySelector('.draggable-window-body'), messageVal);
+      }
+    }
+    // Save snapshot for next update
+    globalChatLogSnapshot = snapshot;
   }
 }
 
