@@ -76,6 +76,24 @@ body {
   border-width: 2px;
 }
 
+.minimize-button {
+  top: 1px;
+  right: 52px;
+  background: url(../images/window_minimize_button.png);
+}
+
+.maximize-button {
+  top: 1px;
+  right: 27px;
+  background: url(../images/window_maximize_button.png);
+}
+
+.close-button {
+  top: 1px;
+  right: 2px;
+  background: url(../images/window_close_button.png);
+}
+
 .draggable-window-body {
   width: calc(100% - 14px);
   height: calc(100% - 79px);

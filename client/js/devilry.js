@@ -1,6 +1,7 @@
 import * as firebaseUtil from "./firebase-util.js";
 import * as rooms from "./data/rooms.js";
 import * as spells from "./data/spells.js";
+import '../css/main.css';
 
 let draggedWindow = null;
 let resizedAnchor = null;

@@ -2,6 +2,7 @@ const path = require('path');
 const HtmlWebpackPlugin = require('html-webpack-plugin');
 
 module.exports = {
+  devtool: 'source-map',
   mode: 'development',
   entry: {
     'devilry': './client/js/devilry.js'  },
@@ -17,6 +18,10 @@ module.exports = {
         use: 'html-loader'
       },
       {
+        test: /\.css$/i,
+        use: ["style-loader", "css-loader"]
+      },
+      {
           test: /\.(png|jpg)$/i,
           type: 'asset/resource',
           generator: {
@@ -29,7 +34,6 @@ module.exports = {
       new HtmlWebpackPlugin({
           template: './client/index.html',
           filename: 'index.html',
-          //inject: false
       })
   ],
 };

@@ -5,11 +5,6 @@
   <link rel="stylesheet" href="css/main.css">
   <!-- When we boot, load javascript file-->
   <body>
-    <!-- <script type="text/javascript" src="./firebase-util.js"></script> -->
-    <!-- <script type="text/javascript" src="util.bundle.js"></script> -->
-    <!-- <script type="text/javascript" src="./spells.bundle.js"></script> -->
-    <!-- <script type="text/javascript" src="./rooms.bundle.js"></script> -->
-    <!-- <script src="./devilry.bundle.js"></script> -->
 
     <!--TEMPLATE: Draggable Window-->
     <template id="draggableWindowTemplate">
@@ -24,11 +19,11 @@
               <!--Window Title-->
               <span class="draggable-window-title" style="top: 4px; left: 2px;"> DEVILRY.exe </span>
               <!--Button: Minimize-->
-              <button class="draggable-window-button" id="minimize-button" style="top: 1px; right: 52px; background: url(images/window_minimize_button.png);"></button>
+              <button class="draggable-window-button minimize-button" id="minimize-button"></button>
               <!--Button: Maximize-->
-              <button class="draggable-window-button" id="maximize-button" style="top: 1px; right: 27px; background: url(images/window_maximize_button.png);"></button>
+              <button class="draggable-window-button maximize-button" id="maximize-button"></button>
               <!--Button: Close-->
-              <button class="draggable-window-button" id="close-button" style="top: 1px; right: 2px; background: url(images/window_close_button.png);"></button>
+              <button class="draggable-window-button close-button" id="close-button"></button>
             </div>
           </div>
           <!--Text Log Body-->
