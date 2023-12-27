@@ -1,0 +1,169 @@
+/**********************Generics**********************/
+
+@font-face {
+  font-family: "DOSFont";
+  src: url("../fonts/Perfect DOS VGA 437.ttf");
+}
+
+@font-face {
+  font-family: "DOSFontWin";
+  src: url("../fonts/Perfect DOS VGA 437 Win.ttf");
+}
+
+body {
+  width: 100vw;
+  height: 100vh;
+  display: block;
+  position: fixed;
+  top: 0;
+  left: 0;
+  margin: 0;
+  padding: 0;
+  background-color: #208c71;
+  font-family: "DOSFont";
+}
+
+/*******************Draggable Window*********************/
+
+.draggable-window {
+  width: 395px;
+  height: 550px;
+  border: 3px solid #c7c6c6;
+  position: absolute;
+  z-index: 10;
+}
+
+.draggable-window-container {
+  width: 100%;
+  height: 100%;
+  position: relative;
+}
+
+.draggable-window-background {
+  width: 100%;
+  height: 100%;
+  background-color: #000000;
+  opacity: 100%;
+}
+
+.draggable-window-header {
+  width: 100%;
+  height: 25px;
+  border-bottom: 2px solid rgb(180, 180, 180);
+  display: block;
+  position: absolute;
+  top: 0;
+  left: 0;
+  background-color: #394dcd;
+}
+
+.draggable-window-title {
+  position: absolute;
+  color: #ffffff;
+  font-size: 20px;
+  font-family: "DOSFont";
+  -webkit-user-drag: none;
+  user-select: none;
+  -moz-user-select: none;
+  -webkit-user-select: none;
+  -ms-user-select: none;
+}
+
+.draggable-window-button {
+  position: absolute;
+  width: 24px;
+  height: 24px;
+  border-width: 2px;
+}
+
+.draggable-window-body {
+  width: calc(100% - 14px);
+  height: calc(100% - 79px);
+  position: absolute;
+  top: 28px;
+  left: 0;
+  padding: 7px 7px;
+  overflow-y: auto;
+}
+
+.draggable-window-footer {
+  position: absolute;
+  width: 100%;
+  height: 30px;
+  left: 0;
+  bottom: 5px;
+  border-top: rgb(231, 231, 231) solid;
+}
+
+.draggable-window-input {
+  position: relative;
+  width: calc(100% - 8px);
+  height: 100%;
+  background-color: unset;
+  border: unset;
+  color: #ffffff;
+  font-family: "DOSFont";
+}
+
+.resize-anchor {
+  left: calc(100% - 20px);
+  bottom: 20px;
+  position: relative;
+  -webkit-user-drag: none;
+  user-select: none;
+  -moz-user-select: none;
+  -webkit-user-select: none;
+  -ms-user-select: none;
+  cursor: se-resize;
+}
+
+/*************Log entries / text*****************/
+
+.log-entry-parent {
+  margin-block-start: 2px;
+  margin-block-end: 0px;
+}
+
+.log-entry-meta {
+  color: rgb(255, 255, 0)
+}
+
+.log-entry-text {
+  color: #ffffff;
+}
+
+.log-entry-spell {
+  color:rgb(197, 5, 5);
+}
+
+/****************Icons****************************/
+
+.icons-container {
+  width: 100%;
+  height: 100%;
+  position: relative;
+  z-index: 0;
+}
+
+.icon {
+  width: 100px;
+  height: 120px;
+  position: absolute;
+  margin: 5px;
+  -webkit-user-drag: none;
+  user-select: none;
+  -moz-user-select: none;
+  -webkit-user-select: none;
+  -ms-user-select: none;
+}
+
+.icon-image {
+  width: 100%;
+  height: 100px;
+  position: relative;
+}
+
+.icon-name {
+  margin-block-start: unset;
+  margin-block-end: unset;
+}

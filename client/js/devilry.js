@@ -1,3 +1,7 @@
+import * as firebaseUtil from "./firebase-util.js";
+import * as rooms from "./data/rooms.js";
+import * as spells from "./data/spells.js";
+
 let draggedWindow = null;
 let resizedAnchor = null;
 let draggedWindowOffsetX = 0;
@@ -16,7 +20,21 @@ const spellRandomChatTimeMax = 25;
 const spellRandomCharMin = 8;
 const spellRandomCharMax = 16;
 
-function devilryStart(startEvent) {
+function devilryStart() {
+  // ---------- Set listeners for icon buttons
+  const globalChatIcon = document.querySelector('#global-chat-icon');
+  globalChatIcon.addEventListener('dblclick', (event) => {
+    iconClicked(event, 'globalChat');
+  });
+  const localChatIcon = document.querySelector('#local-chat-icon');
+  localChatIcon.addEventListener('dblclick', (event) => {
+    iconClicked(event, 'localChat');
+  });
+  const mindIcon = document.querySelector('#mind-icon');
+  mindIcon.addEventListener('dblclick', (event) => {
+    iconClicked(event, 'mind');
+  });
+
   // ---------- Init window setup
   // Initialize all windows from the start but keep them hidden (closed).
   // They will be opened when user clicks icons.
@@ -39,6 +57,24 @@ function devilryStart(startEvent) {
         newWindowElement.querySelector('.draggable-window-title').textContent = 'MIND';
         break;
     }
+
+    // Set listeners for terminal buttons
+    const minimizeButton = newWindowElement.querySelector('#minimize-button');
+    minimizeButton.id += i + 1;
+    minimizeButton.addEventListener('click', (event) => {
+      minimizeClicked(event);
+    });
+    const maximizeButton = newWindowElement.querySelector('#maximize-button');
+    maximizeButton.id += i + 1;
+    maximizeButton.addEventListener('click', (event) => {
+      maximizeClicked(event);
+    });
+    const closeButton = newWindowElement.querySelector('#close-button');
+    closeButton.id += i + 1;
+    closeButton.addEventListener('click', (event) => {
+      closeClicked(event);
+    });
+
     newWindowElement.style.top = (50 + (i * 50)) + 'px';
     newWindowElement.style.left = (50 + (i * 50)) + 'px';
     newWindowElement.style.display = 'none';
@@ -108,6 +144,10 @@ function devilryStart(startEvent) {
       }
     });
   }
+
+  firebaseUtil.setDBMessageListener('one', function (snapshot) {
+    console.log(snapshot.val());
+  });
 }
 
 function focusWindow(focusedWindow) {
@@ -133,6 +173,7 @@ function resizeableAnchorMouseMove(event) {
 
 function inputTextChat(event) {
   if ((event.key === 'Enter' || event.keyCode === 13) && event.target.value) {
+    var message = '';
     const windowBody = event.target.parentElement.parentElement.querySelector('.draggable-window-body');
     // Check for spell triggers first
     // -- Bless
@@ -140,14 +181,16 @@ function inputTextChat(event) {
       const p = document.createElement("p");
       p.className = 'log-entry-parent log-entry-spell';
       windowBody.appendChild(p);
-      spellDelayedAdd({spell: spells.bless}, p, windowBody);
+      spellDelayedAdd({spell: spells.spells.bless}, p, windowBody);
+      message = 'spell:bless';
 
     // -- RoomTest
     } else if (event.target.value.trim().includes('cast room')) {
       const p = document.createElement("p");
       p.className = 'log-entry-parent log-entry-spell';
       windowBody.appendChild(p);
-      spellDelayedAdd({spell: rooms.castle_NESW}, p, windowBody);
+      spellDelayedAdd({spell: rooms.rooms.castle_NESW}, p, windowBody);
+      message = 'spell:room';
 
     // Else, enter into chat normally
     } else {
@@ -173,9 +216,12 @@ function inputTextChat(event) {
       p.appendChild(textSpan);
       p.className = 'log-entry-parent';
       windowBody.appendChild(p);
+
+      message = event.target.value;
     }
 
     event.target.value = '';
+    firebaseUtil.writeMessage('Dumbpants', message, 1);
     windowBody.scrollTo(0, windowBody.scrollHeight);
   }
 }
@@ -299,3 +345,7 @@ function iconClicked(event, iconName) {
     }
   }
 }
+
+//------------ Run start function
+devilryStart();
+//document.body.addEventListener('load', devilryStart);

@@ -1,4 +1,4 @@
-const spells = {
+export const spells = {
   bless: 
 `MMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMM
 <br>MMMMMMMMMMMMds+:--------:+sdNMMMMMMMMMMM
