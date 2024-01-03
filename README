@@ -5,3 +5,6 @@
 
 ######## Build ########
 - run 'npm run build'
+
+######## Deployment ########
+run 'firebase deploy --only hosting'
