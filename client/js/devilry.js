@@ -27,9 +27,9 @@ let localChatElementRef = null;
 let mindChatElementRef = null;
 
 // Chat message log snapshots
-let globalChatLogSnapshot = null;
-let localChatLogSnapshot = null;
-let mindChatLogSnapshot = null;
+let globalChatFirstLoadFlag = null;
+let localChatFirstLoadFlag = null;
+let mindChatFirstLoadFlag = null;
 
 function devilryStart() {
   // ---------- Set listeners for icon buttons
@@ -373,7 +373,7 @@ function globalChatUpdate(snapshot) {
   if (snapshot.exists()) {
     const snapshotVal = snapshot.val();
     // Update chat log with new entries only
-    if (globalChatLogSnapshot) {
+    if (globalChatFirstLoadFlag) {
       let messageVal = snapshotVal[Object.keys(snapshotVal)[Object.keys(snapshotVal).length - 1]].message;
       switch(messageVal) {
         case 'spell:bless':
@@ -398,9 +398,9 @@ function globalChatUpdate(snapshot) {
         }
         processNewTextElement(globalChatElementRef.querySelector('.draggable-window-body'), messageVal);
       }
+      // Flip first time loaded flag
+      globalChatFirstLoadFlag = true;
     }
-    // Save snapshot for next update
-    globalChatLogSnapshot = snapshot;
   }
 }
 
