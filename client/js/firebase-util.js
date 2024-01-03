@@ -16,19 +16,18 @@ const app = initializeApp(firebaseConfig);
 // Initialize Realtime Database and get a reference to the service
 const db = getDatabase(app);
 
-var globalMessageNumber = 1;
-
-export function writeMessage (name, message, messageNumber) {
+export function writeMessage (name, message, roomName) {
   const db = getDatabase();
-  set(ref(db, 'messages/one/m' + globalMessageNumber++), {
+  const timestamp = Date.now();
+  set(ref(db, 'messages/' + roomName + '/' + name + '_' + timestamp), {
     username: name,
     message: message,
-    timestamp: Date.now()
+    timestamp: timestamp
   });
 }
 
 export function setDBMessageListener (roomName, listenerFunction) {
-  const messageRef = query(ref(db, 'messages/one'), orderByChild('timestamp'));
+  const messageRef = query(ref(db, 'messages/' + roomName), orderByChild('timestamp'));
   onValue(messageRef, (snapshot) => {
     listenerFunction(snapshot);
   });

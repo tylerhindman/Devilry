@@ -160,7 +160,7 @@ function devilryStart() {
   }
 
   // ----- Set message listener for global chat window
-  firebaseUtil.setDBMessageListener('one', function (snapshot) {
+  firebaseUtil.setDBMessageListener('12345', function (snapshot) {
     globalChatUpdate(snapshot);
   });
 }
@@ -244,9 +244,7 @@ function inputTextChat(event) {
     // Clear text field
     event.target.value = '';
     // Write to database
-    firebaseUtil.writeMessage('Dumbpants', message, 1);
-    // Add element to chat window
-    processNewTextElement(event.target.parentElement.parentElement.querySelector('.draggable-window-body'), event.target.value);
+    firebaseUtil.writeMessage('Dumbpants', message, '12345');
   }
 }
 
