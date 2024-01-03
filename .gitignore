@@ -1,2 +1,5 @@
 # ignore vscode local files
 .vscode/
+node_modules/
+client/dist/
+.firebase/

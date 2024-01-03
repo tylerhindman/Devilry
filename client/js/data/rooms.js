@@ -1,4 +1,4 @@
-const rooms = {
+export const rooms = {
     castle_NESW:
     `╔────╗══╔────╗
     <br>│╔───╝╬╬╚───╗│
