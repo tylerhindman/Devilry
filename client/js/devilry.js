@@ -54,6 +54,10 @@ function devilryStart() {
   mindIcon.addEventListener('dblclick', (event) => {
     iconClicked(event, 'mind');
   });
+  const logoutIcon = document.querySelector('#logout-icon');
+  logoutIcon.addEventListener('dblclick', (event) => {
+    logout();
+  });
 
   // ---------- Init window setup
   // Initialize all windows from the start but keep them hidden (closed).
@@ -368,12 +372,16 @@ function maximizeWindow(maxWindow, maxOrRestore) {
   }
 }
 
+function closeWindow(closeWindow) {
+  if (closeWindow != null && closeWindow.getAttribute('closed') == 'false') {
+    closeWindow.style.display = 'none';
+    closeWindow.setAttribute('closed', 'true');
+  }
+}
+
 function closeClicked(event) {
   const parentWindow = event.target.parentElement.parentElement.parentElement.parentElement;
-  if (parentWindow != null && parentWindow.getAttribute('closed') == 'false') {
-    parentWindow.style.display = 'none';
-    parentWindow.setAttribute('closed', 'true');
-  }
+  closeWindow(parentWindow);
 }
 
 function iconClicked(event, iconName) {
@@ -442,6 +450,35 @@ function globalChatUpdate(snapshot) {
       globalChatFirstLoadFlag = true;
     }
   }
+}
+
+function clearChatWindow(clearWindow) {
+  const clearBody = clearWindow.querySelector('.draggable-window-body');
+  clearBody.innerHTML = '';
+}
+
+function logout() {
+  // Clear user vars and cookies
+  globalChatFirstLoadFlag = false;
+  username = null;
+  roomKey = null;
+  utils.deleteCookie('username');
+  utils.deleteCookie('roomKey');
+
+  // Remove DB listeners
+  firebaseUtil.removeDBMessageListeners();
+
+  // Clear and hide windows
+  closeWindow(globalChatElementRef);
+  closeWindow(localChatElementRef);
+  closeWindow(mindChatElementRef);
+  clearChatWindow(globalChatElementRef);
+  clearChatWindow(localChatElementRef);
+  clearChatWindow(mindChatElementRef);
+
+  // Reinstate login window
+  loginWindowCoverElementRef.style.display = 'block';
+  loginWindowElementRef.style.display = 'block';
 }
 
 //------------ Run start function

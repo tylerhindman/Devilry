@@ -1,5 +1,5 @@
 import { initializeApp } from "firebase/app";
-import { getDatabase, ref, set, onValue, orderByChild, query } from "firebase/database";
+import { getDatabase, ref, set, onValue, orderByChild, query, off } from "firebase/database";
 
 // TODO: Replace the following with your app's Firebase project configuration
 // See: https://firebase.google.com/docs/web/learn-more#config-object
@@ -16,6 +16,8 @@ const app = initializeApp(firebaseConfig);
 // Initialize Realtime Database and get a reference to the service
 const db = getDatabase(app);
 
+const listenerList = new Array();
+
 export function writeMessage (name, message, roomName) {
   const db = getDatabase();
   const timestamp = Date.now();
@@ -28,7 +30,14 @@ export function writeMessage (name, message, roomName) {
 
 export function setDBMessageListener (roomName, listenerFunction) {
   const messageRef = query(ref(db, 'messages/' + roomName));
+  listenerList.push(messageRef);
   onValue(messageRef, (snapshot) => {
     listenerFunction(snapshot);
+  });
+}
+
+export function removeDBMessageListeners () {
+  listenerList.forEach((el) => {
+    off(el);
   });
 }
