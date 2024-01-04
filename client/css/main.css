@@ -154,6 +154,49 @@ body {
   color:rgb(197, 5, 5);
 }
 
+/****************Login Window*********************/
+.login-window {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 400px;
+  height: 225px;
+  border: 5px solid black;
+  background-color: beige;
+}
+
+.login-window-label {
+  font-size: 15px;
+  left: 100px;
+  margin-block-start: 0px;
+  margin-block-end: 0px;
+  position: relative;
+}
+
+.login-window-input {
+  width: 200px;
+  height: 25px;
+  left: 100px;
+  position: relative;
+  font-family: "DOSFont";
+}
+
+.login-window-button {
+  width: 70px;
+  height: 25px;
+  left: -46px;
+  top: 120px;
+  position: relative;
+}
+
+.login-window-desktop-cover {
+  width: 100%;
+  height: 100%;
+  background-color: black;
+  opacity: 45%;
+}
+
 /****************Icons****************************/
 
 .icons-container {

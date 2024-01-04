@@ -1,6 +1,7 @@
 import * as firebaseUtil from "./firebase-util.js";
 import * as rooms from "./data/rooms.js";
 import * as spells from "./data/spells.js";
+import * as utils from "./util.js";
 import '../css/main.css';
 
 let draggedWindow = null;
@@ -21,6 +22,10 @@ const spellRandomChatTimeMax = 25;
 const spellRandomCharMin = 8;
 const spellRandomCharMax = 16;
 
+// User vars
+let username = null;
+let roomKey = null;
+
 // Chat window references
 let globalChatElementRef = null;
 let localChatElementRef = null;
@@ -30,6 +35,10 @@ let mindChatElementRef = null;
 let globalChatFirstLoadFlag = null;
 let localChatFirstLoadFlag = null;
 let mindChatFirstLoadFlag = null;
+
+// Login window references
+let loginWindowElementRef = null;
+let loginWindowCoverElementRef = null;
 
 function devilryStart() {
   // ---------- Set listeners for icon buttons
@@ -159,8 +168,37 @@ function devilryStart() {
     });
   }
 
+  // ----- Get Login window refs + setup
+  loginWindowElementRef = document.querySelector('#login-window');
+  loginWindowCoverElementRef = document.querySelector('#login-window-desktop-cover');
+  // Grab username and roomKey
+  username = utils.getCookie('username');
+  roomKey = utils.getCookie('roomKey');
+  // If we are already in a session, hide the login screen
+  if (username && roomKey) {
+    loginWindowElementRef.style.display = 'none';
+    loginWindowCoverElementRef.style.display = 'none';
+    initRoomListeners();
+  }
+  // Set listener on login button
+  loginWindowElementRef.querySelector('#login-window-button').addEventListener('click', function (event) {
+    let usernameFieldValue = loginWindowElementRef.querySelector('#login-window-name-input').value;
+    let roomKeyFieldValue = loginWindowElementRef.querySelector('#login-window-room-input').value;
+    if (usernameFieldValue && roomKeyFieldValue) {
+      loginWindowElementRef.style.display = 'none';
+      loginWindowCoverElementRef.style.display = 'none';
+      username = usernameFieldValue;
+      roomKey = roomKeyFieldValue;
+      utils.setCookie('username', username);
+      utils.setCookie('roomKey', roomKey);
+      initRoomListeners();
+    }
+  });
+}
+
+function initRoomListeners() {
   // ----- Set message listener for global chat window
-  firebaseUtil.setDBMessageListener('12345', function (snapshot) {
+  firebaseUtil.setDBMessageListener(roomKey, function (snapshot) {
     globalChatUpdate(snapshot);
   });
 }
@@ -186,7 +224,7 @@ function resizeableAnchorMouseMove(event) {
   }
 }
 
-function processNewTextElement(windowBody, value) {
+function processNewTextElement(windowBody, value, msgUsername, timestamp) {
   // Check for spell triggers first
   // -- Bless
   if (value.trim().includes('cast bless')) {
@@ -208,13 +246,13 @@ function processNewTextElement(windowBody, value) {
     const metaSpan = document.createElement("span");
     const textSpan = document.createElement("span");
 
-    const currentDate = new Date();
+    const currentDate = new Date(timestamp);
     let currentHour = new String(currentDate.getHours() > 12 ? currentDate.getHours() - 12 : currentDate.getHours());
     let currentMinute = new String(currentDate.getMinutes());
     const currentTime = (currentHour.length == 1 ? '0' + currentHour : currentHour) + ":"
       + (currentMinute.length == 1 ? '0' + currentMinute : currentMinute)
       + new String(currentDate.getHours() >= 12 ? 'PM' : 'AM');
-    const metaNode = document.createTextNode('[Dumbpants ' + currentTime + '] ');
+    const metaNode = document.createTextNode('[' + msgUsername + ' ' + currentTime + '] ');
     metaSpan.appendChild(metaNode);
     metaSpan.className = 'log-entry-meta';
 
@@ -244,7 +282,7 @@ function inputTextChat(event) {
     // Clear text field
     event.target.value = '';
     // Write to database
-    firebaseUtil.writeMessage('Dumbpants', message, '12345');
+    firebaseUtil.writeMessage(username, message, roomKey);
   }
 }
 
@@ -374,7 +412,8 @@ function globalChatUpdate(snapshot) {
     const snapshotVal = snapshot.val();
     // Update chat log with new entries only
     if (globalChatFirstLoadFlag) {
-      let messageVal = snapshotVal[Object.keys(snapshotVal)[Object.keys(snapshotVal).length - 1]].message;
+      let snapshotObj = snapshotVal[Object.keys(snapshotVal)[Object.keys(snapshotVal).length - 1]];
+      let messageVal = snapshotObj.message;
       switch(messageVal) {
         case 'spell:bless':
           messageVal = 'cast bless';
@@ -383,11 +422,12 @@ function globalChatUpdate(snapshot) {
           messageVal = 'cast room';
           break;
       }
-      processNewTextElement(globalChatElementRef.querySelector('.draggable-window-body'), messageVal);
+      processNewTextElement(globalChatElementRef.querySelector('.draggable-window-body'), messageVal, snapshotObj.username, snapshotObj.timestamp);
     // Loading for first time
     } else {
       for (const log in snapshotVal) {
-        let messageVal = snapshotVal[log].message;
+        let snapshotObj = snapshotVal[log];
+        let messageVal = snapshotObj.message;
         switch(messageVal) {
           case 'spell:bless':
             messageVal = 'cast bless';
@@ -396,7 +436,7 @@ function globalChatUpdate(snapshot) {
             messageVal = 'cast room';
             break;
         }
-        processNewTextElement(globalChatElementRef.querySelector('.draggable-window-body'), messageVal);
+        processNewTextElement(globalChatElementRef.querySelector('.draggable-window-body'), messageVal, snapshotObj.username, snapshotObj.timestamp);
       }
       // Flip first time loaded flag
       globalChatFirstLoadFlag = true;

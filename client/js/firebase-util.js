@@ -19,7 +19,7 @@ const db = getDatabase(app);
 export function writeMessage (name, message, roomName) {
   const db = getDatabase();
   const timestamp = Date.now();
-  set(ref(db, 'messages/' + roomName + '/' + name + '_' + timestamp), {
+  set(ref(db, 'messages/' + roomName + '/' + timestamp + '_' + name), {
     username: name,
     message: message,
     timestamp: timestamp
@@ -27,7 +27,7 @@ export function writeMessage (name, message, roomName) {
 }
 
 export function setDBMessageListener (roomName, listenerFunction) {
-  const messageRef = query(ref(db, 'messages/' + roomName), orderByChild('timestamp'));
+  const messageRef = query(ref(db, 'messages/' + roomName));
   onValue(messageRef, (snapshot) => {
     listenerFunction(snapshot);
   });
