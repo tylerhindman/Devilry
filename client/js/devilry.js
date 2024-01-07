@@ -214,7 +214,7 @@ function login() {
 
 function initRoomListeners() {
   // ----- Set message listener for global chat window
-  firebaseUtil.setDBMessageListener(roomKey, function (snapshot) {
+  firebaseUtil.setGlobalChatDBMessageListener(roomKey, function (snapshot) {
     globalChatUpdate(snapshot);
   });
 }
@@ -298,7 +298,7 @@ function inputTextChat(event) {
     // Clear text field
     event.target.value = '';
     // Write to database
-    firebaseUtil.writeMessage(username, message, roomKey);
+    firebaseUtil.writeGlobalChatMessage(username, message, roomKey);
   }
 }
 
@@ -478,7 +478,7 @@ function logout() {
   utils.deleteCookie('roomKey');
 
   // Remove DB listeners
-  firebaseUtil.removeDBMessageListeners();
+  firebaseUtil.removeGlobalDBMessageListeners();
 
   // Clear and hide windows
   closeWindow(globalChatElementRef);
@@ -495,4 +495,3 @@ function logout() {
 
 //------------ Run start function
 devilryStart();
-//document.body.addEventListener('load', devilryStart);

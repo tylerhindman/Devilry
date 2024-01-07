@@ -16,28 +16,46 @@ const app = initializeApp(firebaseConfig);
 // Initialize Realtime Database and get a reference to the service
 const db = getDatabase(app);
 
-const listenerList = new Array();
+let globalListenerList = [];
 
-export function writeMessage (name, message, roomName) {
+let localListenerList = [];
+
+export function writeGlobalChatMessage (name, message, roomName) {
   const db = getDatabase();
   const timestamp = Date.now();
-  set(ref(db, 'messages/' + roomName + '/' + timestamp + '_' + name), {
+  set(ref(db, roomName + '/globalChat/' + timestamp + '_' + name), {
     username: name,
     message: message,
     timestamp: timestamp
   });
 }
 
-export function setDBMessageListener (roomName, listenerFunction) {
-  const messageRef = query(ref(db, 'messages/' + roomName));
-  listenerList.push(messageRef);
+export function setGlobalChatDBMessageListener (roomName, listenerFunction) {
+  const messageRef = query(ref(db, roomName + '/globalChat'));
+  globalListenerList.push(messageRef);
   onValue(messageRef, (snapshot) => {
     listenerFunction(snapshot);
   });
 }
 
-export function removeDBMessageListeners () {
-  listenerList.forEach((el) => {
+export function setLocalChatDBMessageListener (roomName, listenerFunction) {
+  const messageRef = query(ref(db, roomName + '/globalChat'));
+  localListenerList.push(messageRef);
+  onValue(messageRef, (snapshot) => {
+    listenerFunction(snapshot);
+  });
+}
+
+export function removeGlobalDBMessageListeners () {
+  globalListenerList.forEach((el) => {
     off(el);
   });
+  globalListenerList = [];
+}
+
+export function removeLocalDBMessageListeners () {
+  localListenerList.forEach((el) => {
+    off(el);
+  });
+  localListenerList = [];
 }
