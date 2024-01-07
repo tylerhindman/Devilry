@@ -31,7 +31,11 @@ let globalChatElementRef = null;
 let localChatElementRef = null;
 let mindChatElementRef = null;
 
-// Chat message log snapshots
+// Map window references
+let mapZoomedOutElementRef = null;
+let mapZoomedInElementRef = null;
+
+// Chat message log flags
 let globalChatFirstLoadFlag = null;
 let localChatFirstLoadFlag = null;
 let mindChatFirstLoadFlag = null;
@@ -54,17 +58,26 @@ function devilryStart() {
   mindIcon.addEventListener('dblclick', (event) => {
     iconClicked(event, 'mind');
   });
+  const zoomedOutMapIcon = document.querySelector('#zoomed-out-map-icon');
+  zoomedOutMapIcon.addEventListener('dblclick', (event) => {
+    iconClicked(event, 'map-');
+  });
+  const zoomedInMapIcon = document.querySelector('#zoomed-in-map-icon');
+  zoomedInMapIcon.addEventListener('dblclick', (event) => {
+    iconClicked(event, 'map+');
+  });
   const logoutIcon = document.querySelector('#logout-icon');
   logoutIcon.addEventListener('dblclick', (event) => {
     logout();
   });
+
 
   // ---------- Init window setup
   // Initialize all windows from the start but keep them hidden (closed).
   // They will be opened when user clicks icons.
 
   // Following windows are chat windows (global, local, mind).
-  for (let i = 0; i < 3; i++) {
+  for (let i = 0; i < 5; i++) {
     const newWindowNode = document.getElementById('draggableWindowTemplate').content.cloneNode(true);
     const newWindowElement = newWindowNode.lastElementChild;
     switch (i) {
@@ -82,6 +95,20 @@ function devilryStart() {
         newWindowElement.id = 'chat-window-mind';
         newWindowElement.querySelector('.draggable-window-title').textContent = 'MIND';
         mindChatElementRef = newWindowElement;
+        break;
+      case 3:
+        newWindowElement.id = 'map-window-zoomed-out';
+        newWindowElement.querySelector('.draggable-window-title').textContent = 'MAP -';
+        newWindowElement.querySelector('.draggable-window-footer').remove();
+        newWindowElement.querySelector('.draggable-window-body').style.height = '100%';
+        mapZoomedOutElementRef = newWindowElement;
+        break;
+      case 4:
+        newWindowElement.id = 'map-window-zoomed-in';
+        newWindowElement.querySelector('.draggable-window-title').textContent = 'MAP +';
+        newWindowElement.querySelector('.draggable-window-footer').remove();
+        newWindowElement.querySelector('.draggable-window-body').style.height = '100%';
+        mapZoomedInElementRef = newWindowElement;
         break;
     }
 
@@ -220,7 +247,10 @@ function initRoomListeners() {
 }
 
 function focusWindow(focusedWindow) {
-  focusedWindow.querySelector('.draggable-window-input').focus();
+  const input = focusedWindow.querySelector('.draggable-window-input');
+  if (input) {
+    input.focus();
+  }
   focusedWindow.style.zIndex = ++zIndexCounter;
   currentlyFocusedWindow = focusedWindow;
 }
@@ -409,13 +439,22 @@ function iconClicked(event, iconName) {
     case 'mind':
       selectedWindow = document.getElementById('chat-window-mind');
       break;
+    case 'map-':
+      selectedWindow = document.getElementById('map-window-zoomed-out');
+      break;
+    case 'map+':
+      selectedWindow = document.getElementById('map-window-zoomed-in');
+      break;
   }
 
   // Only open the window if it is already closed
   if (selectedWindow != null && selectedWindow.getAttribute('closed') == 'true') {
     selectedWindow.style.display = 'block';
     selectedWindow.setAttribute('closed', 'false');
-    selectedWindow.querySelector('.draggable-window-input').focus();
+    const input = selectedWindow.querySelector('.draggable-window-input')
+    if (input) {
+      input.focus();
+    }
     selectedWindow.style.zIndex = ++zIndexCounter;
     currentlyFocusedWindow = selectedWindow;
     if (selectedWindow.getAttribute('minimized') !== 'false') {
