@@ -185,19 +185,31 @@ function devilryStart() {
     initRoomListeners();
   }
   // Set listener on login button
-  loginWindowElementRef.querySelector('#login-window-button').addEventListener('click', function (event) {
-    let usernameFieldValue = loginWindowElementRef.querySelector('#login-window-name-input').value;
-    let roomKeyFieldValue = loginWindowElementRef.querySelector('#login-window-room-input').value;
-    if (usernameFieldValue && roomKeyFieldValue) {
-      loginWindowElementRef.style.display = 'none';
-      loginWindowCoverElementRef.style.display = 'none';
-      username = usernameFieldValue;
-      roomKey = roomKeyFieldValue;
-      utils.setCookie('username', username);
-      utils.setCookie('roomKey', roomKey);
-      initRoomListeners();
+  loginWindowElementRef.querySelector('#login-window-button').addEventListener('click', login);
+  loginWindowElementRef.querySelector('#login-window-name-input').addEventListener('keyup', function (event) {
+    if ((event.key === 'Enter' || event.keyCode === 13)) {
+      login();
     }
   });
+  loginWindowElementRef.querySelector('#login-window-room-input').addEventListener('keyup', function (event) {
+    if ((event.key === 'Enter' || event.keyCode === 13)) {
+      login();
+    }
+  });
+}
+
+function login() {
+  let usernameFieldValue = loginWindowElementRef.querySelector('#login-window-name-input').value;
+  let roomKeyFieldValue = loginWindowElementRef.querySelector('#login-window-room-input').value;
+  if (usernameFieldValue && roomKeyFieldValue) {
+    loginWindowElementRef.style.display = 'none';
+    loginWindowCoverElementRef.style.display = 'none';
+    username = usernameFieldValue;
+    roomKey = roomKeyFieldValue;
+    utils.setCookie('username', username);
+    utils.setCookie('roomKey', roomKey);
+    initRoomListeners();
+  }
 }
 
 function initRoomListeners() {
