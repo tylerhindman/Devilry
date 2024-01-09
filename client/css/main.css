@@ -160,6 +160,10 @@ body {
   color: #208c71;
 }
 
+.map-player {
+  color: yellow;
+}
+
 
 /****************Login Window*********************/
 .login-window {

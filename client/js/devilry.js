@@ -27,8 +27,15 @@ let username = null;
 let roomKey = null;
 
 // Map vars
+const mapVoid = '░';
+const mapUndiscovered = '▒';
+const mapDiscovered = '▓';
+const mapPlayer = 'Φ';
 const mapWidth = 10;
 const mapHeight = 6;
+const mapMaster = [];
+const playerLocation = {y: 0, x: 0};
+const mapDetailElements = [];
 
 // Chat window references
 let globalChatElementRef = null;
@@ -222,17 +229,9 @@ function devilryStart() {
       login();
     }
   });
-}
 
-function setupMapWindow(windowRef, name, width, height) {
-  windowRef.style.width = width + 'px';
-  windowRef.style.height = height + 'px';
-  windowRef.querySelector('.draggable-window-title').textContent = name;
-  windowRef.querySelector('.draggable-window-footer').remove();
-  windowRef.querySelector('.draggable-window-body').style.height = 'calc(100% - 42px)';
-  const paragraphElement = document.createElement("p");
-  paragraphElement.className = 'map-text';
-  windowRef.querySelector('.draggable-window-body').appendChild(paragraphElement);
+  // ----- Map
+  initializeMap();
 }
 
 function login() {
@@ -573,6 +572,89 @@ function castSpell(spellArgs) {
 function movePlayer(direction) {
   
 }
+
+//#region MAP
+function setupMapWindow(windowRef, name, width, height) {
+  windowRef.style.width = width + 'px';
+  windowRef.style.height = height + 'px';
+  windowRef.querySelector('.draggable-window-title').textContent = name;
+  windowRef.querySelector('.draggable-window-footer').remove();
+  windowRef.querySelector('.draggable-window-body').style.height = 'calc(100% - 42px)';
+  const paragraphElement = document.createElement("p");
+  paragraphElement.className = 'map-text';
+  windowRef.querySelector('.draggable-window-body').appendChild(paragraphElement);
+}
+
+function initializeMap() {
+  for (let i = 0; i < mapHeight; i++) {
+    const row = [];
+    for (let j = 0; j < mapWidth; j++) {
+      row.push('void');
+    }
+    mapMaster.push(row);
+  }
+
+  // Set player location & starting room key
+  // Setting player statically to bottom left, will change later to randomize position
+  playerEnterRoom(mapHeight - 1, 0);
+
+  buildMapText();
+  buildMapDetailText();
+}
+
+function playerEnterRoom(y, x) {
+  playerLocation.y = y;
+  playerLocation.x = x;
+  const tile = mapMaster[y][x];
+  // Generate new tile
+  if (tile == 'void') {
+    mapMaster[y][x] = 'castle_NE__';
+  }
+
+  // TODO events on enter
+}
+
+function buildMapText() {
+  let mapText = '';
+  for (let i = 0; i < mapHeight; i++) {
+    for (let j = 0; j < mapWidth; j++) {
+      let tile = '';
+      if (mapMaster[i][j] == 'void') {
+        tile = mapVoid;
+        // TODO - determine if room is undiscovered but available based on room detail key
+      } else {
+        tile = mapDiscovered;
+      }
+      // Override with player location
+      if (playerLocation.y == i && playerLocation.x == j) {
+        tile = '<span class="map-player">' + mapPlayer + '</span>';
+      }
+      mapText += tile;
+      if (j < (mapWidth - 1)) {
+        mapText += '  ';
+      }
+    }
+    if (i < (mapHeight - 1)) {
+      mapText += '<br>\r\n<br>\r\n';
+    }
+  }
+  mapZoomedOutElementRef.querySelector('.map-text').innerHTML = mapText;
+}
+
+function buildMapDetailText() {
+  let mapText = '';
+  try {
+    mapText = rooms.rooms[mapMaster[playerLocation.y][playerLocation.x]];
+    // Add in detail elements from room detail
+    // Player
+    mapText = mapText.slice(0, 95) + '<span class="map-player">' + mapPlayer + '</span>' + mapText.slice(96);
+
+    mapZoomedInElementRef.querySelector('.map-text').innerHTML = mapText;
+  } catch (error) {
+    console.log('invalid room');
+  }
+}
+//#endregion
 
 //------------ Run start function
 devilryStart();
