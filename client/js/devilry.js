@@ -38,7 +38,6 @@ let mapZoomedInElementRef = null;
 // Chat message log flags
 let globalChatFirstLoadFlag = null;
 let localChatFirstLoadFlag = null;
-let mindChatFirstLoadFlag = null;
 
 // Login window references
 let loginWindowElementRef = null;
@@ -247,12 +246,14 @@ function initRoomListeners() {
 }
 
 function focusWindow(focusedWindow) {
-  const input = focusedWindow.querySelector('.draggable-window-input');
-  if (input) {
-    input.focus();
+  if (!currentlyFocusedWindow || (currentlyFocusedWindow.id != focusedWindow.id)) {
+    const input = focusedWindow.querySelector('.draggable-window-input');
+    if (input) {
+      input.focus();
+    }
+    focusedWindow.style.zIndex = ++zIndexCounter;
+    currentlyFocusedWindow = focusedWindow;
   }
-  focusedWindow.style.zIndex = ++zIndexCounter;
-  currentlyFocusedWindow = focusedWindow;
 }
 
 function draggableWindowMouseMove(event) {
@@ -271,20 +272,13 @@ function resizeableAnchorMouseMove(event) {
 }
 
 function processNewTextElement(windowBody, value, msgUsername, timestamp) {
-  // Check for spell triggers first
+  // Check for spell text triggers first
   // -- Bless
-  if (value.trim().includes('cast bless')) {
-    const p = document.createElement("p");
-    p.className = 'log-entry-parent log-entry-spell';
-    windowBody.appendChild(p);
-    spellDelayedAdd({spell: spells.spells.bless}, p, windowBody);
-
+  if (value.trim() == 'spell:bless') {
+    spellDelayedAddKickOff(spells.spells.bless, windowBody);
   // -- RoomTest
-  } else if (value.trim().includes('cast room')) {
-    const p = document.createElement("p");
-    p.className = 'log-entry-parent log-entry-spell';
-    windowBody.appendChild(p);
-    spellDelayedAdd({spell: rooms.rooms.castle_NESW}, p, windowBody);
+  } else if (value.trim() == 'spell:room') {
+    spellDelayedAddKickOff(rooms.rooms.castle_NESW, windowBody);
 
   // Else, enter into chat normally
   } else {
@@ -319,28 +313,40 @@ function inputTextChat(event) {
   if ((event.key === 'Enter' || event.keyCode === 13) && event.target.value) {
     // Translate spell values for database
     let message = event.target.value;
-    if (event.target.value.trim().includes('cast bless')) {
-      message = 'spell:bless';
-    } else if (event.target.value.trim().includes('cast room')) {
-      message = 'spell:room';
-    }
 
     // Clear text field
     event.target.value = '';
-    // Write to database
-    firebaseUtil.writeGlobalChatMessage(username, message, roomKey);
+    switch(event.target.parentElement.parentElement.parentElement.id) {
+      case 'chat-window-global':
+        // Write to database - global chat
+        firebaseUtil.writeGlobalChatMessage(username, message, roomKey);
+        break;
+      case 'chat-window-local':
+        // Write to database - local chat - specific room
+        break;
+      case 'chat-window-mind':
+        // Send to mind processing
+        processMindCommand(message);
+        break;
+    }
   }
 }
 
-function spellDelayedAdd(textObj, paragraphElement, windowBody) {
-  let text = textObj.spell;
-  if (text.length > 0) {
-    let randomCharAmount = text.indexOf("<br>") != -1 ? text.indexOf("<br>") + 4 : text.length;
-    randomCharAmount = randomCharAmount <= text.length - 1 ? randomCharAmount : text.length; 
-    paragraphElement.innerHTML += text.substring(0, randomCharAmount);
-    textObj.spell = text.substring(randomCharAmount);
+function spellDelayedAddKickOff(spellText, windowBody) {
+  const paragraphElement = document.createElement("p");
+  paragraphElement.className = 'log-entry-parent log-entry-spell';
+  windowBody.appendChild(paragraphElement);
+  spellDelayedAdd(spellText, paragraphElement, windowBody);
+}
+
+function spellDelayedAdd(spellText, paragraphElement, windowBody) {
+  if (spellText.length > 0) {
+    let randomCharAmount = spellText.indexOf("<br>") != -1 ? spellText.indexOf("<br>") + 4 : spellText.length;
+    randomCharAmount = randomCharAmount <= spellText.length - 1 ? randomCharAmount : spellText.length; 
+    paragraphElement.innerHTML += spellText.substring(0, randomCharAmount);
+    spellText = spellText.substring(randomCharAmount);
     setTimeout(() => {
-      spellDelayedAdd(textObj, paragraphElement, windowBody)
+      spellDelayedAdd(spellText, paragraphElement, windowBody)
     }, Math.random() * (spellRandomChatTimeMax - spellRandomChatTimeMin));
     windowBody.scrollTo(0, windowBody.scrollHeight);
   }
@@ -462,6 +468,8 @@ function iconClicked(event, iconName) {
     } else if (selectedWindow.getAttribute('maximized') !== 'false') {
       maximizeWindow(selectedWindow, 'restore');
     }
+    const windowBody = selectedWindow.querySelector('.draggable-window-body');
+    windowBody.scrollTo(0, windowBody.scrollHeight);
   }
 }
 
@@ -473,28 +481,12 @@ function globalChatUpdate(snapshot) {
     if (globalChatFirstLoadFlag) {
       let snapshotObj = snapshotVal[Object.keys(snapshotVal)[Object.keys(snapshotVal).length - 1]];
       let messageVal = snapshotObj.message;
-      switch(messageVal) {
-        case 'spell:bless':
-          messageVal = 'cast bless';
-          break;
-        case 'spell:room':
-          messageVal = 'cast room';
-          break;
-      }
       processNewTextElement(globalChatElementRef.querySelector('.draggable-window-body'), messageVal, snapshotObj.username, snapshotObj.timestamp);
     // Loading for first time
     } else {
       for (const log in snapshotVal) {
         let snapshotObj = snapshotVal[log];
         let messageVal = snapshotObj.message;
-        switch(messageVal) {
-          case 'spell:bless':
-            messageVal = 'cast bless';
-            break;
-          case 'spell:room':
-            messageVal = 'cast room';
-            break;
-        }
         processNewTextElement(globalChatElementRef.querySelector('.draggable-window-body'), messageVal, snapshotObj.username, snapshotObj.timestamp);
       }
       // Flip first time loaded flag
@@ -530,6 +522,45 @@ function logout() {
   // Reinstate login window
   loginWindowCoverElementRef.style.display = 'block';
   loginWindowElementRef.style.display = 'block';
+}
+
+function processMindCommand(message) {
+  const parsedCommand = message.split(' ')[0];
+  const args = message.split(' ').length > 1 ? message.split(' ').slice(1) : [];
+  switch (parsedCommand) {
+    case 'cast':
+      if (args.length > 0) {
+        castSpell(args)
+      }
+      break;
+    case 'move':
+      if (args.length > 0) {
+        movePlayer(args[1]);
+      }
+      break;
+    default:
+      break;
+  }
+}
+
+function castSpell(spellArgs) {
+  const spell = spellArgs[0];
+  switch (spell) {
+    case 'bless':
+      // Write spell trigger to specific chat
+      firebaseUtil.writeGlobalChatMessage(username, 'spell:bless', roomKey);
+      // Spell logic
+      break;
+    case 'room':
+      // Write spell trigger to specific chat
+      firebaseUtil.writeGlobalChatMessage(username, 'spell:room', roomKey);
+      // Spell logic
+      break;
+  }
+}
+
+function movePlayer(direction) {
+
 }
 
 //------------ Run start function
