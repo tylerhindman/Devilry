@@ -26,6 +26,10 @@ const spellRandomCharMax = 16;
 let username = null;
 let roomKey = null;
 
+// Map vars
+const mapWidth = 10;
+const mapHeight = 6;
+
 // Chat window references
 let globalChatElementRef = null;
 let localChatElementRef = null;
@@ -97,16 +101,12 @@ function devilryStart() {
         break;
       case 3:
         newWindowElement.id = 'map-window-zoomed-out';
-        newWindowElement.querySelector('.draggable-window-title').textContent = 'MAP -';
-        newWindowElement.querySelector('.draggable-window-footer').remove();
-        newWindowElement.querySelector('.draggable-window-body').style.height = '100%';
+        setupMapWindow(newWindowElement, 'MAP -', 250, 275);
         mapZoomedOutElementRef = newWindowElement;
         break;
       case 4:
         newWindowElement.id = 'map-window-zoomed-in';
-        newWindowElement.querySelector('.draggable-window-title').textContent = 'MAP +';
-        newWindowElement.querySelector('.draggable-window-footer').remove();
-        newWindowElement.querySelector('.draggable-window-body').style.height = '100%';
+        setupMapWindow(newWindowElement, 'MAP +', 200, 230);
         mapZoomedInElementRef = newWindowElement;
         break;
     }
@@ -222,6 +222,17 @@ function devilryStart() {
       login();
     }
   });
+}
+
+function setupMapWindow(windowRef, name, width, height) {
+  windowRef.style.width = width + 'px';
+  windowRef.style.height = height + 'px';
+  windowRef.querySelector('.draggable-window-title').textContent = name;
+  windowRef.querySelector('.draggable-window-footer').remove();
+  windowRef.querySelector('.draggable-window-body').style.height = 'calc(100% - 42px)';
+  const paragraphElement = document.createElement("p");
+  paragraphElement.className = 'map-text';
+  windowRef.querySelector('.draggable-window-body').appendChild(paragraphElement);
 }
 
 function login() {
@@ -560,7 +571,7 @@ function castSpell(spellArgs) {
 }
 
 function movePlayer(direction) {
-
+  
 }
 
 //------------ Run start function

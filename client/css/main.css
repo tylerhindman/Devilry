@@ -154,6 +154,13 @@ body {
   color:rgb(197, 5, 5);
 }
 
+/********************Map**************************/
+
+.map-text {
+  color: #208c71;
+}
+
+
 /****************Login Window*********************/
 .login-window {
   position: absolute;
