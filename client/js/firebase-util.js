@@ -38,6 +38,21 @@ export function setGlobalChatDBMessageListener (roomName, listenerFunction) {
   });
 }
 
+export function writeGlobalMapUpdate (roomName, y, x, mapKey) {
+  const db = getDatabase();
+  set(ref(db, roomName + '/map/' + y + '_' + x), {
+    mapKey: mapKey
+  });
+}
+
+export function setGlobalMapDBMessageListener (roomName, listenerFunction) {
+  const messageRef = query(ref(db, roomName + '/map'));
+  globalListenerList.push(messageRef);
+  onValue(messageRef, (snapshot) => {
+    listenerFunction(snapshot);
+  });
+}
+
 export function setLocalChatDBMessageListener (roomName, listenerFunction) {
   const messageRef = query(ref(db, roomName + '/globalChat'));
   localListenerList.push(messageRef);

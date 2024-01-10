@@ -33,9 +33,11 @@ const mapDiscovered = '▓';
 const mapPlayer = 'Φ';
 const mapWidth = 10;
 const mapHeight = 6;
-const mapMaster = [];
+let mapMaster = [];
+let mapReference = [];
 const playerLocation = {y: 0, x: 0};
 const mapDetailElements = [];
+const mapTheme = 'castle';
 
 // Chat window references
 let globalChatElementRef = null;
@@ -49,6 +51,7 @@ let mapZoomedInElementRef = null;
 // Chat message log flags
 let globalChatFirstLoadFlag = null;
 let localChatFirstLoadFlag = null;
+let globalMapFirstLoadFlag = null;
 
 // Login window references
 let loginWindowElementRef = null;
@@ -229,9 +232,6 @@ function devilryStart() {
       login();
     }
   });
-
-  // ----- Map
-  initializeMap();
 }
 
 function login() {
@@ -253,17 +253,21 @@ function initRoomListeners() {
   firebaseUtil.setGlobalChatDBMessageListener(roomKey, function (snapshot) {
     globalChatUpdate(snapshot);
   });
+  // Initialize Map
+  initializeMap();
+  // ----- Set message listener for global map
+  firebaseUtil.setGlobalMapDBMessageListener(roomKey, function (snapshot) {
+    globalMapUpdate(snapshot);
+  });
 }
 
 function focusWindow(focusedWindow) {
-  if (!currentlyFocusedWindow || (currentlyFocusedWindow.id != focusedWindow.id)) {
-    const input = focusedWindow.querySelector('.draggable-window-input');
-    if (input) {
-      input.focus();
-    }
-    focusedWindow.style.zIndex = ++zIndexCounter;
-    currentlyFocusedWindow = focusedWindow;
+  const input = focusedWindow.querySelector('.draggable-window-input');
+  if (input) {
+    input.focus();
   }
+  focusedWindow.style.zIndex = ++zIndexCounter;
+  currentlyFocusedWindow = focusedWindow;
 }
 
 function draggableWindowMouseMove(event) {
@@ -288,7 +292,7 @@ function processNewTextElement(windowBody, value, msgUsername, timestamp) {
     spellDelayedAddKickOff(spells.spells.bless, windowBody);
   // -- RoomTest
   } else if (value.trim() == 'spell:room') {
-    spellDelayedAddKickOff(rooms.rooms.castle_NESW, windowBody);
+    spellDelayedAddKickOff(rooms[mapTheme].NESW, windowBody);
 
   // Else, enter into chat normally
   } else {
@@ -513,6 +517,7 @@ function clearChatWindow(clearWindow) {
 function logout() {
   // Clear user vars and cookies
   globalChatFirstLoadFlag = false;
+  globalMapFirstLoadFlag = false;
   username = null;
   roomKey = null;
   utils.deleteCookie('username');
@@ -545,7 +550,7 @@ function processMindCommand(message) {
       break;
     case 'move':
       if (args.length > 0) {
-        movePlayer(args[1]);
+        movePlayer(args[0]);
       }
       break;
     default:
@@ -554,7 +559,7 @@ function processMindCommand(message) {
 }
 
 function castSpell(spellArgs) {
-  const spell = spellArgs[0];
+  const spell = spellArgs[0].trim();
   switch (spell) {
     case 'bless':
       // Write spell trigger to specific chat
@@ -570,7 +575,21 @@ function castSpell(spellArgs) {
 }
 
 function movePlayer(direction) {
-  
+  direction = direction.trim().toUpperCase();
+  // Valid directions only...
+  if ((direction == 'NORTH' || direction == 'UP') && playerLocation.y > 0
+        && mapMaster[playerLocation.y][playerLocation.x].includes('N')) {
+    playerEnterRoom(playerLocation.y - 1, playerLocation.x);
+  } else if ((direction == 'EAST' || direction == 'RIGHT') && playerLocation.x < (mapWidth - 1)
+                && mapMaster[playerLocation.y][playerLocation.x].includes('E')) {
+    playerEnterRoom(playerLocation.y, playerLocation.x + 1);
+  } else if ((direction == 'SOUTH' || direction == 'DOWN') && playerLocation.y < (mapHeight - 1)
+                && mapMaster[playerLocation.y][playerLocation.x].includes('S')) {
+    playerEnterRoom(playerLocation.y + 1, playerLocation.x);
+  } else if ((direction == 'WEST' || direction == 'LEFT') && playerLocation.x > 0
+                && mapMaster[playerLocation.y][playerLocation.x].includes('W')) {
+    playerEnterRoom(playerLocation.y, playerLocation.x - 1);
+  }
 }
 
 //#region MAP
@@ -586,32 +605,144 @@ function setupMapWindow(windowRef, name, width, height) {
 }
 
 function initializeMap() {
+  mapMaster = [];
+  mapReference = [];
   for (let i = 0; i < mapHeight; i++) {
     const row = [];
+    const referenceRow = [];
     for (let j = 0; j < mapWidth; j++) {
-      row.push('void');
+      row.push('');
+      referenceRow.push('');
     }
     mapMaster.push(row);
+    mapReference.push(referenceRow);
+  }
+}
+
+function globalMapUpdate(snapshot) {
+  // Only update if data exists
+  if (snapshot.exists()) {
+    // Iterate through all rooms on server
+    const snapshotVal = snapshot.val();
+    const serverRooms = Object.keys(snapshotVal);
+    for (let i = 0; i < serverRooms.length; i++) {
+      // Grab coordinate and split it to y and x values
+      const serverCoord = serverRooms[i];
+      const y = Number(serverCoord.split('_')[0]);
+      const x = Number(serverCoord.split('_')[1]);
+      // If local mapReference does not have value server does at that coordinate, set it in local reference
+      if (mapReference[y][x] != snapshotVal[serverCoord]) {
+        mapReference[y][x] = snapshotVal[serverCoord].mapKey;
+      }
+    }
   }
 
-  // Set player location & starting room key
-  // Setting player statically to bottom left, will change later to randomize position
-  playerEnterRoom(mapHeight - 1, 0);
-
-  buildMapText();
-  buildMapDetailText();
+  // Initialize map for first load
+  if (!globalMapFirstLoadFlag) {
+    globalMapFirstLoadFlag = true;
+    // Set player location & starting room key
+    // Setting player statically to bottom left, will change later to randomize position
+    playerEnterRoom(mapHeight - 1, 0);
+  }
 }
 
 function playerEnterRoom(y, x) {
   playerLocation.y = y;
   playerLocation.x = x;
-  const tile = mapMaster[y][x];
-  // Generate new tile
-  if (tile == 'void') {
-    mapMaster[y][x] = 'castle_NE__';
+  const referenceTile = mapReference[y][x];
+  // Tile exists on server...
+  if (referenceTile) {
+    // If we haven't discovered the tile yet, put it in local master
+    if (!mapMaster[y][x]) {
+      mapMaster[y][x] = referenceTile;
+    }
+    
+  // No tile on server, generate new tile
+  } else {
+    // Gather viable tile properties based on the following factors:
+    // 1. Tested adjacent tile is within the bounds of the grid AND
+    // 2. Tested adjacent tile is undiscovered on server OR
+    // 3. Tested adjacent tile is discovered and has adjoining path
+    const searchTerms = [];
+    const notSearchTerms = [];
+    let hasToHaveNorth = false;
+    let hasToHaveEast = false;
+    let hasToHaveSouth = false;
+    let hasToHaveWest = false;
+    if ((y - 1) >= 0 && mapReference[y - 1][x].includes('S')) {
+      hasToHaveNorth = true;
+      searchTerms.push('N');
+    } else if ((y - 1) >= 0 && (!mapReference[y - 1][x])) {
+      searchTerms.push('N');
+    } else {
+      notSearchTerms.push('N');
+    }
+
+    if ((x + 1) < mapWidth && mapReference[y][x + 1].includes('W')) {
+      hasToHaveEast = true;
+      searchTerms.push('E');
+    } else if ((x + 1) < mapWidth && (!mapReference[y][x + 1])) {
+      searchTerms.push('E');
+    } else {
+      notSearchTerms.push('E');
+    }
+    
+    if ((y + 1) < mapHeight && mapReference[y + 1][x].includes('N')) {
+      hasToHaveSouth = true;
+      searchTerms.push('S');
+    } else if ((y + 1) < mapHeight && (!mapReference[y + 1][x])) {
+      searchTerms.push('S');
+    } else {
+      notSearchTerms.push('S');
+    }
+
+    if ((x - 1) >= 0 && mapReference[y][x - 1].includes('E')) {
+      hasToHaveWest = true;
+      searchTerms.push('W');
+    } else if ((x - 1) >= 0 && (!mapReference[y][x - 1])) {
+      searchTerms.push('W');
+    } else {
+      notSearchTerms.push('W');
+    }
+    
+    // Use search terms to gather list of tiles to choose from
+    const viableTiles = [];
+    const allTiles = Object.keys(rooms[mapTheme]);
+    for (let i = 0; i < searchTerms.length; i++) {
+      for (let j = 0; j < allTiles.length; j++) {
+        // Add only if it matches search term and it's not already selected
+        if (allTiles[j].includes(searchTerms[i]) && !viableTiles.includes(allTiles[j]) &&
+            ((hasToHaveNorth && allTiles[j].includes('N')) || !hasToHaveNorth) &&
+            ((hasToHaveEast && allTiles[j].includes('E')) || !hasToHaveEast) &&
+            ((hasToHaveSouth && allTiles[j].includes('S')) || !hasToHaveSouth) &&
+            ((hasToHaveWest && allTiles[j].includes('W')) || !hasToHaveWest)) {
+          viableTiles.push(allTiles[j]);
+          // Revoke if from a NOT search term
+          for (let k = 0; k < notSearchTerms.length; k++) {
+            if (allTiles[j].includes(notSearchTerms[k])) {
+              viableTiles.pop();
+              break;
+            }
+          }
+        }
+      }
+    }
+
+    // Randomly pick tile from viable tiles and set it in local master
+    const randomIndex =  Math.floor(Math.random() * (viableTiles.length));
+    const newTile = viableTiles[randomIndex];
+    mapMaster[y][x] = newTile;
+    
+    // Write tile to server
+    firebaseUtil.writeGlobalMapUpdate(roomKey, y, x, newTile);
   }
 
   // TODO events on enter
+
+
+  // Redraw map
+  buildMapText();
+  buildMapDetailText();
 }
 
 function buildMapText() {
@@ -619,9 +750,15 @@ function buildMapText() {
   for (let i = 0; i < mapHeight; i++) {
     for (let j = 0; j < mapWidth; j++) {
       let tile = '';
-      if (mapMaster[i][j] == 'void') {
+      if (!mapMaster[i][j]) {
         tile = mapVoid;
-        // TODO - determine if room is undiscovered but available based on room detail key
+        // Determine if nearby room is undiscovered but available based on room detail key
+        if ((i - 1) >= 0 && mapMaster[i - 1][j].includes('S') ||
+              (j + 1) < mapWidth && mapMaster[i][j + 1].includes('W') ||
+              (i + 1) < mapHeight && mapMaster[i + 1][j].includes('N') ||
+              (j - 1) >= 0 && mapMaster[i][j - 1].includes('E')) {
+          tile = mapUndiscovered;
+        }
       } else {
         tile = mapDiscovered;
       }
@@ -644,7 +781,7 @@ function buildMapText() {
 function buildMapDetailText() {
   let mapText = '';
   try {
-    mapText = rooms.rooms[mapMaster[playerLocation.y][playerLocation.x]];
+    mapText = rooms[mapTheme][mapMaster[playerLocation.y][playerLocation.x]];
     // Add in detail elements from room detail
     // Player
     mapText = mapText.slice(0, 95) + '<span class="map-player">' + mapPlayer + '</span>' + mapText.slice(96);
