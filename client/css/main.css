@@ -146,8 +146,20 @@ body {
   color: rgb(255, 255, 0)
 }
 
+.log-entry-meta-self {
+  color: #208c71;
+}
+
 .log-entry-text {
   color: #ffffff;
+}
+
+.log-entry-entered {
+  color: green;
+}
+
+.log-entry-exited {
+  color: red;
 }
 
 .log-entry-spell {

@@ -39,6 +39,9 @@ const playerLocation = {y: 0, x: 0};
 const mapDetailElements = [];
 const mapTheme = 'castle';
 
+// Data models - local
+let playersLocal = {};
+
 // Chat window references
 let globalChatElementRef = null;
 let localChatElementRef = null;
@@ -51,6 +54,7 @@ let mapZoomedInElementRef = null;
 // Chat message log flags
 let globalChatFirstLoadFlag = null;
 let localChatFirstLoadFlag = null;
+let playerLocalFirstLoadFlag = null;
 let globalMapFirstLoadFlag = null;
 
 // Login window references
@@ -308,7 +312,7 @@ function processNewTextElement(windowBody, value, msgUsername, timestamp) {
       + new String(currentDate.getHours() >= 12 ? 'PM' : 'AM');
     const metaNode = document.createTextNode('[' + msgUsername + ' ' + currentTime + '] ');
     metaSpan.appendChild(metaNode);
-    metaSpan.className = 'log-entry-meta';
+    metaSpan.className = (msgUsername == username) ? 'log-entry-meta-self' : 'log-entry-meta';
 
     const textNode = document.createTextNode(value);
     textSpan.appendChild(textNode);
@@ -337,6 +341,7 @@ function inputTextChat(event) {
         break;
       case 'chat-window-local':
         // Write to database - local chat - specific room
+        firebaseUtil.writeLocalChatMessage(roomKey, playerLocation.y, playerLocation.x, username, message);
         break;
       case 'chat-window-mind':
         // Send to mind processing
@@ -514,10 +519,21 @@ function clearChatWindow(clearWindow) {
   clearBody.innerHTML = '';
 }
 
+function updateWindowTitle(titleWindow, newTitle) {
+  const titleWindowElement = titleWindow.querySelector('.draggable-window-title');
+  titleWindowElement.textContent = newTitle;
+}
+
 function logout() {
+  // Clean up server players
+  firebaseUtil.removePlayersLocal(roomKey, playerLocation.y, playerLocation.x, username);
+
   // Clear user vars and cookies
-  globalChatFirstLoadFlag = false;
-  globalMapFirstLoadFlag = false;
+  globalChatFirstLoadFlag = null;
+  globalMapFirstLoadFlag = null;
+  localChatFirstLoadFlag = null;
+  playerLocalFirstLoadFlag = null;
+  playersLocal = {};
   username = null;
   roomKey = null;
   utils.deleteCookie('username');
@@ -525,6 +541,7 @@ function logout() {
 
   // Remove DB listeners
   firebaseUtil.removeGlobalDBMessageListeners();
+  firebaseUtil.removeLocalDBMessageListeners();
 
   // Clear and hide windows
   closeWindow(globalChatElementRef);
@@ -592,6 +609,136 @@ function movePlayer(direction) {
   }
 }
 
+//#region LOCALCHAT
+function exitLocalChat () {
+  // Remove player from old room local chat list
+  firebaseUtil.removePlayersLocal(roomKey, playerLocation.y, playerLocation.x, username);
+}
+
+function enterLocalChat () {
+  // First, remove all local listeners from old room (if any)
+  firebaseUtil.removeLocalDBMessageListeners();
+  // Reset first load flags
+  localChatFirstLoadFlag = null;
+  playerLocalFirstLoadFlag = null;
+  playersLocal = {};
+  // Clear local chat window
+  clearChatWindow(localChatElementRef);
+  // Update local chat and map + window titles
+  updateWindowTitle(localChatElementRef, 'LOCAL_CHAT ' + (playerLocation.y + 1) + '-' + (playerLocation.x + 1));
+  updateWindowTitle(mapZoomedInElementRef, 'MAP + ' + (playerLocation.y + 1) + '-' + (playerLocation.x + 1));
+  // Add player to local chat list
+  firebaseUtil.writePlayersLocalMessage(roomKey, playerLocation.y, playerLocation.x, username);
+  // Then, add listeners for new room
+  firebaseUtil.setLocalChatDBMessageListener(roomKey, playerLocation.y, playerLocation.x, function (snapshot) {
+    localChatUpdate(snapshot);
+  });
+  firebaseUtil.setPlayersLocalDBMessageListener(roomKey, playerLocation.y, playerLocation.x, function (snapshot) {
+    playerLocalUpdate(snapshot);
+  });
+}
+
+function localChatUpdate (snapshot) {
+  // Ignore first message always (comes from subscribing)
+  if (localChatFirstLoadFlag) {
+    // Only update if data exists
+    if (snapshot.exists()) {
+      const snapshotVal = snapshot.val();
+      let snapshotObj = snapshotVal[Object.keys(snapshotVal)[Object.keys(snapshotVal).length - 1]];
+      processNewTextElement(localChatElementRef.querySelector('.draggable-window-body'), snapshotObj.message, snapshotObj.username, snapshotObj.timestamp);
+    }
+  } else {
+    localChatFirstLoadFlag = true;
+  }
+}
+
+function playerLocalUpdate(snapshot) {
+  // Only update if data exists
+  if (snapshot.exists()) {
+    // Ignore first message always (comes from subscribing)
+    if (playerLocalFirstLoadFlag) {
+      const playersServer = snapshot.val();
+
+      // Check if any player entered compared to local cache
+      const playerEnteredList = [];
+      for (const playerServer in playersServer) {
+        let playerFound = false;
+        for (const playerLocal in playersLocal) {
+          if (playerServer == playerLocal) {
+            playerFound = true;
+            break;
+          }
+        }
+        if (!playerFound) {
+          playerEnteredList.push(playerServer);
+        }
+      }
+      // Check if any player left compared to local cache
+      const playerExitedList = [];
+      for (const playerLocal in playersLocal) {
+        let playerFound = false;
+        for (const playerServer in playersServer) {
+          if (playerServer == playerLocal) {
+            playerFound = true;
+            break;
+          }
+        }
+        if (!playerFound) {
+          playerExitedList.push(playerLocal);
+        }
+      }
+
+      // Add text logs to local chat
+      for (const playerEnteredIndex in playerEnteredList) {
+        addLocalPlayerEnteredExitedLog(playerEnteredList[playerEnteredIndex], 'entered');
+      }
+      for (const playerExitedIndex in playerExitedList) {
+        addLocalPlayerEnteredExitedLog(playerExitedList[playerExitedIndex], 'exited');
+      }
+      
+      // Update local cache with server player list
+      playersLocal = playersServer;
+    } else {
+      // Set local cache of player room snapshot
+      playersLocal = snapshot.val();
+      playerLocalFirstLoadFlag = true;
+    }
+  }
+}
+
+function addLocalPlayerEnteredExitedLog(msgUsername, enteredOrExited) {
+  // Add new text log element to chat window
+  const p = document.createElement("p");
+  const playerNameSpan = document.createElement("span");
+  const preTextSpan = document.createElement("span");
+  const playerEnteredExitedSpan = document.createElement("span");
+  const postTextSpan = document.createElement("span");
+
+  const metaNode = document.createTextNode(msgUsername);
+  playerNameSpan.appendChild(metaNode);
+  playerNameSpan.className = 'log-entry-meta';
+
+  const preTextNode = document.createTextNode(' has ');
+  preTextSpan.appendChild(preTextNode);
+  preTextSpan.className = 'log-entry-text';
+  
+  const playerEnteredExitedNode = document.createTextNode(enteredOrExited);
+  playerEnteredExitedSpan.appendChild(playerEnteredExitedNode);
+  playerEnteredExitedSpan.className = enteredOrExited == 'entered' ? 'log-entry-entered' : 'log-entry-exited';
+
+  const postTextNode = document.createTextNode(' the room...');
+  postTextSpan.appendChild(postTextNode);
+  postTextSpan.className = 'log-entry-text';
+
+  p.appendChild(playerNameSpan);
+  p.appendChild(preTextSpan);
+  p.appendChild(playerEnteredExitedSpan);
+  p.appendChild(postTextSpan);
+  p.className = 'log-entry-parent';
+  localChatElementRef.querySelector('.draggable-window-body').appendChild(p);
+}
+//#endregion
+
 //#region MAP
 function setupMapWindow(windowRef, name, width, height) {
   windowRef.style.width = width + 'px';
@@ -647,9 +794,13 @@ function globalMapUpdate(snapshot) {
 }
 
 function playerEnterRoom(y, x) {
+  // Events on leave room
+  exitLocalChat();
+
   playerLocation.y = y;
   playerLocation.x = x;
   const referenceTile = mapReference[y][x];
+
   // Tile exists on server...
   if (referenceTile) {
     // If we haven't discovered the tile yet, put it in local master
@@ -737,8 +888,8 @@ function playerEnterRoom(y, x) {
     firebaseUtil.writeGlobalMapUpdate(roomKey, y, x, newTile);
   }
 
-  // TODO events on enter
-
+  // Events on enter room
+  enterLocalChat();
 
   // Redraw map
   buildMapText();

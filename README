@@ -1,10 +1,52 @@
-######## Setup ########
+################ Setup ###################
 - install nodejs (from internet)
 - run 'npm install' (from terminal)
 - in .vscode/launch.json, set your file path configuration to '\client\dist\index.html' (prefix with your own path)
 
-######## Build ########
+################ Build ###################
 - run 'npm run build'
 
-######## Deployment ########
+############## Deployment ################
 run 'firebase deploy --only hosting'
+
+################ Notes ###################
+
+Data Model:
+
+"[roomKey]": {
+    "players": {
+        "[playerName]": {
+            "leader": "[true/false]",
+            "timestamp": "[timestamp]"
+        }
+        ...
+    },
+    "globalChat": {
+        "[timestamp_playerName]": {
+            "message": "[message]",
+            "timestamp": "[timestamp]",
+            "username": "[playerName]"
+        }
+        ...
+    },
+    "map": {
+        "[y_x]": {
+            "mapKey": "[mapKey]",
+            "players": {
+                "[playerName]": {
+                    "username": "[playerName]",
+                    "timestamp": "[timestamp]"
+                }
+                ...
+            },
+            "localChat": {
+                "[timstamp_playerName]": {
+                    "message": "[message]",
+                    "timestamp": "[timestamp]",
+                    "username": "[playerName]"
+                }
+                ...
+            }
+        }
+    }
+}
