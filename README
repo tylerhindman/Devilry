@@ -12,40 +12,57 @@ run 'firebase deploy --only hosting'
 ################ Notes ###################
 
 Data Model:
-
-"[roomKey]": {
-    "players": {
-        "[playerName]": {
-            "leader": "[true/false]",
-            "timestamp": "[timestamp]"
-        }
+{
+    "roomKeys": {
+        "[roomKey]": "[roomKey]",
         ...
-    },
-    "globalChat": {
-        "[timestamp_playerName]": {
-            "message": "[message]",
-            "timestamp": "[timestamp]",
-            "username": "[playerName]"
-        }
-        ...
-    },
-    "map": {
-        "[y_x]": {
-            "mapKey": "[mapKey]",
-            "players": {
-                "[playerName]": {
-                    "username": "[playerName]",
-                    "timestamp": "[timestamp]"
+    }
+    "[roomKey]": {
+        "players": {
+            "[playerName]": {
+                "leader": "[true/false]",
+                "timestamp": "[timestamp]"
+            }
+            ...
+        },
+        "globalChat": {
+            "[timestamp_playerName]": {
+                "message": "[message]",
+                "timestamp": "[timestamp]",
+                "username": "[playerName]"
+            }
+            ...
+        },
+        "map": {
+            "[y_x]": {
+                "mapKey": "[mapKey]",
+                "metaData": {
+                    "players": {
+                        "[playerName]": {
+                            "username": "[playerName]",
+                            "timestamp": "[timestamp]"
+                        }
+                        ...
+                    },
+                    "items": {
+                        "[itemName]": "[count]"
+                        ...
+                    },
+                    "attribrutes": {
+                        "[attribruteName]": {
+                            "status": "[status]"
+                        }
+                        ...
+                    }
+                },
+                "localChat": {
+                    "[timstamp_playerName]": {
+                        "message": "[message]",
+                        "timestamp": "[timestamp]",
+                        "username": "[playerName]"
+                    }
+                    ...
                 }
-                ...
-            },
-            "localChat": {
-                "[timstamp_playerName]": {
-                    "message": "[message]",
-                    "timestamp": "[timestamp]",
-                    "username": "[playerName]"
-                }
-                ...
             }
         }
     }

@@ -39,6 +39,13 @@ const playerLocation = {y: 0, x: 0};
 const mapDetailElements = [];
 const mapTheme = 'castle';
 
+// Game props
+let gameStarted = false;
+const cfg_maxPlayers = 10;
+
+// Data models - global
+let playersGlobal = {};
+
 // Data models - local
 let playersLocal = {};
 
@@ -60,6 +67,9 @@ let globalMapFirstLoadFlag = null;
 // Login window references
 let loginWindowElementRef = null;
 let loginWindowCoverElementRef = null;
+
+// Lobby window references
+let lobbyWindowElementRef = null;
 
 function devilryStart() {
   // ---------- Set listeners for icon buttons
@@ -224,35 +234,66 @@ function devilryStart() {
     loginWindowCoverElementRef.style.display = 'none';
     initRoomListeners();
   }
-  // Set listener on login button
+  // Set listener on login buttons
   loginWindowElementRef.querySelector('#login-window-button').addEventListener('click', login);
-  loginWindowElementRef.querySelector('#login-window-name-input').addEventListener('keyup', function (event) {
-    if ((event.key === 'Enter' || event.keyCode === 13)) {
-      login();
-    }
-  });
+  loginWindowElementRef.querySelector('#create-room-button').addEventListener('click', createRoom);
+  // ***Commented out, have to click Create Room
+  // loginWindowElementRef.querySelector('#login-window-name-input').addEventListener('keyup', function (event) {
+  //   if ((event.key === 'Enter' || event.keyCode === 13)) {
+  //     login();
+  //   }
+  // });
   loginWindowElementRef.querySelector('#login-window-room-input').addEventListener('keyup', function (event) {
     if ((event.key === 'Enter' || event.keyCode === 13)) {
       login();
     }
   });
+
+  // ------ Get Lobby window refs
+  lobbyWindowElementRef = document.querySelector('#lobby-window');
+  lobbyWindowElementRef.querySelector('#lobby-players-max').innerHTML = cfg_maxPlayers;
+}
+
+function createRoom() {
+  let usernameFieldValue = loginWindowElementRef.querySelector('#login-window-name-input').value;
+  if (usernameFieldValue) {
+    loginWindowElementRef.style.display = 'none';
+    loginWindowCoverElementRef.style.display = 'none';
+    username = usernameFieldValue;
+    utils.setCookie('username', username);
+    // Call function to create room here
+    roomKey = firebaseUtil.firebaseCreateRoom(username);
+    utils.setCookie('roomKey', roomKey);
+
+    // Go to lobby
+    enterLobby();
+  }
 }
 
 function login() {
   let usernameFieldValue = loginWindowElementRef.querySelector('#login-window-name-input').value;
   let roomKeyFieldValue = loginWindowElementRef.querySelector('#login-window-room-input').value;
   if (usernameFieldValue && roomKeyFieldValue) {
+    // TODO add check here with server to verify if roomKey is valid
+
+    // TODO add check here with server to verify if username is taken or not before logging in
+
     loginWindowElementRef.style.display = 'none';
-    loginWindowCoverElementRef.style.display = 'none';
+    //loginWindowCoverElementRef.style.display = 'none';
     username = usernameFieldValue;
     roomKey = roomKeyFieldValue;
     utils.setCookie('username', username);
     utils.setCookie('roomKey', roomKey);
-    initRoomListeners();
+    // Go to lobby
+    enterLobby();
   }
 }
 
 function initRoomListeners() {
+  // ----- Set message listener for players global
+  firebaseUtil.setPlayersGlobalDBMessageListener(roomKey, function (snapshot) {
+    playersGlobalUpdate();
+  });
   // ----- Set message listener for global chat window
   firebaseUtil.setGlobalChatDBMessageListener(roomKey, function (snapshot) {
     globalChatUpdate(snapshot);
@@ -263,6 +304,36 @@ function initRoomListeners() {
   firebaseUtil.setGlobalMapDBMessageListener(roomKey, function (snapshot) {
     globalMapUpdate(snapshot);
   });
+}
+
+function enterLobby() {
+  initRoomListeners();
+  loginWindowElementRef.style.display = 'none';
+  lobbyWindowElementRef.style.display = 'block';
+  lobbyWindowElementRef.querySelector('#lobby-room-key').innerHTML = roomKey;
+}
+
+function playersGlobalUpdate(snapshot) {
+  // Only update if data exists
+  if (snapshot.exists()) {
+    const playersServer = snapshot.val();
+    
+    // Update local cache with server player list
+    playersGlobal = playersServer;
+
+    // Update lobby player list
+    const lobbyPlayersListElementRef = lobbyWindowElementRef.querySelector('#lobby-players-list');
+    lobbyPlayersListElementRef.innerHTML = '';
+    for (const playerName in playersGlobal) {
+      const p = document.createElement("p");
+      p.className = playerName == username ? 'lobby-player-name-user' : 'lobby-player-name';
+      p.innerHTML = playerName;
+
+      lobbyPlayersListElementRef.appendChild(p);
+    }
+    // Update player count
+    lobbyWindowElementRef.querySelector('#lobby-players-count').innerHTML = Object.keys(playersGlobal).length.toString();
+  }
 }
 
 function focusWindow(focusedWindow) {

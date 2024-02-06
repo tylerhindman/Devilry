@@ -1,12 +1,18 @@
 import { initializeApp } from "firebase/app";
 import { getDatabase, ref, set, onValue, orderByChild, query, off, limitToLast, remove } from "firebase/database";
+import { getFunctions, httpsCallable } from "firebase/functions";
 
 // TODO: Replace the following with your app's Firebase project configuration
 // See: https://firebase.google.com/docs/web/learn-more#config-object
 const firebaseConfig = {
-  // ...
-  // The value of `databaseURL` depends on the location of the database
-  databaseURL: "https://devilry-843c7-default-rtdb.firebaseio.com/",
+  apiKey: "AIzaSyDY4581_Qw9L49C6nhPrmM5Gq_Cc3fMwnQ",
+  authDomain: "devilry-843c7.firebaseapp.com",
+  databaseURL: "https://devilry-843c7-default-rtdb.firebaseio.com",
+  projectId: "devilry-843c7",
+  storageBucket: "devilry-843c7.appspot.com",
+  messagingSenderId: "327098131189",
+  appId: "1:327098131189:web:40824ac5c086d812129bbc",
+  measurementId: "G-MBZJ4NN376"
 };
 
 // Initialize Firebase
@@ -20,6 +26,28 @@ let globalListenerList = [];
 
 let localListenerList = [];
 
+//#region PLAYERS GLOBAL
+export function writePlayersGlobalJoin (name, roomName) {
+  const db = getDatabase();
+  const timestamp = Date.now();
+  set(ref(db, roomName + '/players/' + name), {
+    leader: false, // Leader only gets set true from room creation
+    timestamp: timestamp
+  });
+}
+
+export function writePlayersGlobalLeave (name, roomName) {
+  remove(ref(db, roomName + '/players/' + name));
+}
+
+export function setPlayersGlobalDBMessageListener (roomName, listenerFunction) {
+  const messageRef = query(ref(db, roomName + '/players'));
+  globalListenerList.push(messageRef);
+  onValue(messageRef, (snapshot) => {
+    listenerFunction(snapshot);
+  });
+}
+//#endregion
 
 //#region GLOBALCHAT
 export function writeGlobalChatMessage (name, message, roomName) {
@@ -41,7 +69,6 @@ export function setGlobalChatDBMessageListener (roomName, listenerFunction) {
 }
 //#endregion
 
-
 //#region MAP
 export function writeGlobalMapUpdate (roomName, y, x, mapKey) {
   const db = getDatabase();
@@ -58,7 +85,6 @@ export function setGlobalMapDBMessageListener (roomName, listenerFunction) {
   });
 }
 //#endregion
-
 
 //#region LOCALCHAT
 export function writeLocalChatMessage (roomName, y, x, name, message) {
@@ -79,7 +105,6 @@ export function setLocalChatDBMessageListener (roomName, y, x, listenerFunction)
   });
 }
 //#endregion
-
 
 //#region PLAYERS_LOCAL
 export function writePlayersLocalMessage (roomName, y, x, name) {
@@ -104,7 +129,6 @@ export function setPlayersLocalDBMessageListener (roomName, y, x, listenerFuncti
 }
 //#endregion
 
-
 //#region CLEANUP
 export function removeGlobalDBMessageListeners () {
   globalListenerList.forEach((el) => {
@@ -118,5 +142,17 @@ export function removeLocalDBMessageListeners () {
     off(el);
   });
   localListenerList = [];
+}
+//#endregion
+
+//#region FUNCTIONS
+const functions = getFunctions();
+
+export function firebaseCreateRoom(username) {
+  const createRoom = httpsCallable(functions, 'createRoom');
+  createRoom({ username: username })
+    .then((result) => {
+      // Get roomKey and return
+    });
 }
 //#endregion

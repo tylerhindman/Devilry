@@ -184,7 +184,7 @@ body {
   left: 50%;
   transform: translate(-50%, -50%);
   width: 400px;
-  height: 225px;
+  height: 295px;
   border: 5px solid black;
   background-color: beige;
 }
@@ -192,6 +192,17 @@ body {
 .login-window-label {
   font-size: 15px;
   left: 100px;
+  margin-block-start: 0px;
+  margin-block-end: 0px;
+  position: relative;
+}
+
+.or-label {
+  font-size: 15px;
+  top: 100px;
+  left: 180px;
+  font-style: italic;
+  color: #208c71;
   margin-block-start: 0px;
   margin-block-end: 0px;
   position: relative;
@@ -205,11 +216,19 @@ body {
   font-family: "DOSFont";
 }
 
+.create-room-button {
+  width: 120px;
+  height: 25px;
+  top: 70px;
+  left: -73px;
+  position: relative;
+}
+
 .login-window-button {
   width: 70px;
   height: 25px;
+  top: 170px;
   left: -46px;
-  top: 120px;
   position: relative;
 }
 
@@ -218,6 +237,64 @@ body {
   height: 100%;
   background-color: black;
   opacity: 45%;
+}
+
+/****************Lobby****************************/
+
+.lobby-window {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 400px;
+  height: 200px;
+  border: 5px solid black;
+  background-color: beige;
+}
+
+.lobby-room-label {
+  font-size: 15px;
+  left: 100px;
+  margin-block-start: 0px;
+  margin-block-end: 0px;
+  position: relative;
+}
+
+.lobby-room-key {
+  font-weight: 400;
+}
+
+.lobby-window-button {
+  width: 70px;
+  height: 25px;
+  top: 100px;
+  left: -50px;
+  position: relative;
+}
+
+.lobby-players-label {
+  font-size: 15px;
+  left: 200px;
+  margin-block-start: 0px;
+  margin-block-end: 0px;
+  position: relative;
+}
+
+.lobby-players-count {
+  color: #208c71;
+}
+
+.lobby-players-list {
+  
+}
+
+.lobby-player-name {
+  font-size: 15px;
+  color: rgb(255, 255, 0);
+}
+
+.lobby-player-name-user {
+  color: #208c71;
 }
 
 /****************Icons****************************/
