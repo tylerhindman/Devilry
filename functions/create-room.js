@@ -32,12 +32,18 @@ exports.createRoom = onRequest((request, response) => {
         }
       }
 
+      // Set roomKey in DB
+      admin.database().ref('roomKeys/' + roomKey).set({
+        timestamp: Date.now()
+      });
+
       // Generate map
       // 1. Initialize empty map
       // 2. Start with four way in the center of the map
       // 3. For each open door that does not already have a connecting tile, recurse down that path and create a new tile
-      // 4. New tile is picked randomly from viable tiles based on weights for tile types (1,2,3,4 door) (single door rooms can't be picked for first 3 tiles in a path)
+      // 4. New tile is picked randomly from viable tiles based on weights for tile types (1,2,3,4 door) (single door rooms can't be picked for first few tiles in a path)
       // 5. When we are in a single door room, return back up the path
+      // 6. Format map for database
 
       // 1.
       const mapWidth = constants.mapWidth;
@@ -52,16 +58,30 @@ exports.createRoom = onRequest((request, response) => {
       }
 
       // 2.
-      let startY = Math.ceil(mapHeight / 2);
-      let startX = Math.ceil(mapWidth / 2);
+      let startY = Math.floor(mapHeight / 2);
+      let startX = Math.floor(mapWidth / 2);
       map[startY][startX] = 'NESW';
 
       // 3.
       traversePath(map, startY, startX, mapHeight, mapWidth, constants.roomTypes, 0);
 
+      // 6.
+      const dbMap = {};
+      for (let i = 0; i < mapHeight; i++) {
+        for (let j = 0; j < mapWidth; j++) {
+          dbMap[i + '_' + j] = {
+            mapKey: map[i][j]
+          };
+        }
+      }
 
+      // Save map to DB
+      admin.database().ref(roomKey + '/map').set(dbMap);
 
-      response.send("Hello from Firebase!");
+      // Send roomKey back to client
+      response.send({
+        roomKey: roomKey
+      });
     });
   });
 });
@@ -71,9 +91,9 @@ function traversePath (map, y, x, mapHeight, mapWidth, roomTypes, iteration) {
   iteration++;
   
   // Get available paths
-  const paths = currentTile.replace('_','').split('');
+  const paths = currentTile.replace(/_/g,'').split('');
 
-  // If we are in single door room, recurse back up
+  // 5. If we are in single door room, recurse back up
   if (paths.length == 1) {
     return;
   }
@@ -103,8 +123,8 @@ function traversePath (map, y, x, mapHeight, mapWidth, roomTypes, iteration) {
         break;
     }
 
-    // Try and create tile if it doesn't already exist
-    if (map[nextY][nextX] != '') {
+    // 4. Try and create tile if it doesn't already exist and is inside the map
+    if (nextY >= 0 && nextY < mapHeight && nextX >= 0 && nextX < mapWidth && map[nextY][nextX] == '') {
       let availableTiles = getAvailableTiles(map, nextY, nextX, mapHeight, mapWidth, roomTypes);
       const oneDoorRooms = [];
       const twoDoorRooms = [];
@@ -113,7 +133,7 @@ function traversePath (map, y, x, mapHeight, mapWidth, roomTypes, iteration) {
 
       if (availableTiles.length > 0) {
         for (let j = 0; j < availableTiles.length; j++) {
-          switch(availableTiles[j].replace('_','').length) {
+          switch(availableTiles[j].replace(/_/g,'').length) {
             case 1:
               oneDoorRooms.push(availableTiles[j]);
               break;
@@ -131,21 +151,35 @@ function traversePath (map, y, x, mapHeight, mapWidth, roomTypes, iteration) {
 
         // Distribute random range selection across 0-100 between room types based on initial weights and iterations
         const initialWeight = 12;
-        const oneDoorRange = Math.floor(Math.max((iteration * 2) - initialWeight, 0));
-        const twoDoorRange = Math.floor(Math.max(Math.min((iteration * 3) - initialWeight, initialWeight), 0));
-        const threeDoorRange = Math.floor(Math.max(initialWeight - (iteration * 2), 0));
-        const fourDoorRange = Math.floor(Math.max(initialWeight - (iteration * 3), 0));
+        const oneDoorRange = Math.floor(Math.max((iteration * 2) - initialWeight, 0)) * Math.min(oneDoorRooms.length, 1);
+        const twoDoorRange = Math.floor(Math.max(Math.min((iteration * 3) - initialWeight, initialWeight), 0)) * Math.min(twoDoorRooms.length, 1);
+        const threeDoorRange = Math.floor(Math.max(initialWeight - (iteration * 2), 0)) * Math.min(threeDoorRooms.length, 1);
+        const fourDoorRange = Math.floor(Math.max(initialWeight - (iteration * 3), 0)) * Math.min(fourDoorRooms.length, 1);
         const totalRange = oneDoorRange + twoDoorRange + threeDoorRange + fourDoorRange;
-        const randomSelection = Math.floor(Math.random() * totalRange);
         let selectedTile = '';
-        if (randomSelection < oneDoorRange) {
-          selectedTile = oneDoorRooms[Math.floor(Math.random() * oneDoorRooms.length)];
-        } else if (randomSelection < (oneDoorRange + twoDoorRange)) {
-          selectedTile = twoDoorRooms[Math.floor(Math.random() * oneDoorRooms.length)];
-        } else if (randomSelection < (oneDoorRange + twoDoorRange + threeDoorRange)) {
-          selectedTile = threeDoorRooms[Math.floor(Math.random() * oneDoorRooms.length)];
+        // Fix for if iterations are too low and not very many room options
+        // Pick random from room options favoring lower door rooms first
+        if (totalRange == 0) {
+          if (oneDoorRooms.length > 0) {
+            selectedTile = oneDoorRooms[Math.floor(Math.random() * oneDoorRooms.length)];
+          } else if (twoDoorRooms.length > 0) {
+            selectedTile = twoDoorRooms[Math.floor(Math.random() * oneDoorRooms.length)];
+          } else if (threeDoorRooms.length > 0) {
+            selectedTile = threeDoorRooms[Math.floor(Math.random() * oneDoorRooms.length)];
+          } else if (fourDoorRooms.length > 0) {
+            selectedTile = fourDoorRooms[Math.floor(Math.random() * oneDoorRooms.length)];
+          }
         } else {
-          selectedTile = fourDoorRooms[Math.floor(Math.random() * oneDoorRooms.length)];
+          const randomSelection = Math.floor(Math.random() * totalRange);
+          if (randomSelection < oneDoorRange) {
+            selectedTile = oneDoorRooms[Math.floor(Math.random() * oneDoorRooms.length)];
+          } else if (randomSelection < (oneDoorRange + twoDoorRange)) {
+            selectedTile = twoDoorRooms[Math.floor(Math.random() * oneDoorRooms.length)];
+          } else if (randomSelection < (oneDoorRange + twoDoorRange + threeDoorRange)) {
+            selectedTile = threeDoorRooms[Math.floor(Math.random() * oneDoorRooms.length)];
+          } else {
+            selectedTile = fourDoorRooms[Math.floor(Math.random() * oneDoorRooms.length)];
+          }
         }
 
         // Assign tile in map
