@@ -1,6 +1,7 @@
 const {initializeApp} = require("firebase-admin/database");
-const createRoom = require("./create-room");
+const admin = require("firebase-admin");
+admin.initializeApp();
 
-initializeApp();
+const createRoom = require("./create-room");
 
 exports.createRoom = createRoom.createRoom;

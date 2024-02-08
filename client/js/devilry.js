@@ -249,9 +249,10 @@ function devilryStart() {
     }
   });
 
-  // ------ Get Lobby window refs
+  // ------ Get Lobby window refs + setup
   lobbyWindowElementRef = document.querySelector('#lobby-window');
   lobbyWindowElementRef.querySelector('#lobby-players-max').innerHTML = cfg_maxPlayers;
+  // TODO Set listeners for lobby buttons here
 }
 
 function createRoom() {
@@ -262,11 +263,13 @@ function createRoom() {
     username = usernameFieldValue;
     utils.setCookie('username', username);
     // Call function to create room here
-    roomKey = firebaseUtil.firebaseCreateRoom(username);
-    utils.setCookie('roomKey', roomKey);
+    firebaseUtil.firebaseCreateRoom(username, (result) => {
+      roomKey = result.roomKey;
+      utils.setCookie('roomKey', roomKey);
 
-    // Go to lobby
-    enterLobby();
+      // Go to lobby
+      enterLobby();
+    });
   }
 }
 
@@ -274,18 +277,56 @@ function login() {
   let usernameFieldValue = loginWindowElementRef.querySelector('#login-window-name-input').value;
   let roomKeyFieldValue = loginWindowElementRef.querySelector('#login-window-room-input').value;
   if (usernameFieldValue && roomKeyFieldValue) {
-    // TODO add check here with server to verify if roomKey is valid
+    // Check against DB if room key is valid
+    firebaseUtil.getRoomKeysDB((snapshot) => {
+      let validRoomKey = false; // Start with assumption that room is invalid
+      if (snapshot.exists()) {
+        const roomKeys = snapshot.val();
+        for (const k in roomKeys) {
+          // valid if found in database list
+          if (roomKeyFieldValue == k) {
+            validRoomKey = true;
+            break;
+          }
+        }
+      }
 
-    // TODO add check here with server to verify if username is taken or not before logging in
+      // Show roomkey error
+      if (!validRoomKey) {
 
-    loginWindowElementRef.style.display = 'none';
-    //loginWindowCoverElementRef.style.display = 'none';
-    username = usernameFieldValue;
-    roomKey = roomKeyFieldValue;
-    utils.setCookie('username', username);
-    utils.setCookie('roomKey', roomKey);
-    // Go to lobby
-    enterLobby();
+      // Continue to username verification
+      } else {
+        // Check against server if username is valid in room
+        firebaseUtil.getPlayersGlobalDB((snapshot) => {
+          let validUsername = true; // Start with assumption that name is valid
+          if (snapshot.exists()) {
+            const usernames = snapshot.val();
+            for (const u in usernames) {
+              // Invalid if found in database list
+              if (usernameFieldValue == u) {
+                validUsername = false;
+                break;
+              }
+            }
+          }
+
+          // Show username error
+          if (!validUsername) {
+            
+          // Continue with login
+          } else {
+            loginWindowElementRef.style.display = 'none';
+            //loginWindowCoverElementRef.style.display = 'none';
+            username = usernameFieldValue;
+            roomKey = roomKeyFieldValue;
+            utils.setCookie('username', username);
+            utils.setCookie('roomKey', roomKey);
+            // Go to lobby
+            enterLobby();
+          }
+        });
+      }
+    });
   }
 }
 

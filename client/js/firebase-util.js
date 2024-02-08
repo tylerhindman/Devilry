@@ -26,6 +26,19 @@ let globalListenerList = [];
 
 let localListenerList = [];
 
+//#region ROOM KEYS
+export function writeRoomDestroy (roomName) {
+  remove(ref(db, 'roomKeys/' + roomName));
+}
+
+export function getRoomKeysDB (listenerFunction) {
+  const messageRef = query(ref(db, 'roomKeys'));
+  messageRef.once('value', (data) => {
+    listenerFunction(data);
+  });
+}
+//#endregion
+
 //#region PLAYERS GLOBAL
 export function writePlayersGlobalJoin (name, roomName) {
   const db = getDatabase();
@@ -38,6 +51,13 @@ export function writePlayersGlobalJoin (name, roomName) {
 
 export function writePlayersGlobalLeave (name, roomName) {
   remove(ref(db, roomName + '/players/' + name));
+}
+
+export function getPlayersGlobalDB (roomName, listenerFunction) {
+  const messageRef = query(ref(db, roomName + '/players'));
+  messageRef.once('value', (data) => {
+    listenerFunction(data);
+  });
 }
 
 export function setPlayersGlobalDBMessageListener (roomName, listenerFunction) {
@@ -148,11 +168,11 @@ export function removeLocalDBMessageListeners () {
 //#region FUNCTIONS
 const functions = getFunctions();
 
-export function firebaseCreateRoom(username) {
+export function firebaseCreateRoom(username, callback) {
   const createRoom = httpsCallable(functions, 'createRoom');
   createRoom({ username: username })
     .then((result) => {
-      // Get roomKey and return
+      callback(result);
     });
 }
 //#endregion
