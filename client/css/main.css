@@ -261,7 +261,8 @@ body {
 }
 
 .lobby-room-key {
-  font-weight: 400;
+  font-weight: 600;
+  font-size: 25px;
 }
 
 .lobby-window-button {

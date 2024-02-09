@@ -1,5 +1,5 @@
 import { initializeApp } from "firebase/app";
-import { getDatabase, ref, set, onValue, orderByChild, query, off, limitToLast, remove } from "firebase/database";
+import { getDatabase, ref, set, onValue, orderByChild, query, off, limitToLast, remove, get, child } from "firebase/database";
 import { getFunctions, httpsCallable } from "firebase/functions";
 
 // TODO: Replace the following with your app's Firebase project configuration
@@ -32,9 +32,8 @@ export function writeRoomDestroy (roomName) {
 }
 
 export function getRoomKeysDB (listenerFunction) {
-  const messageRef = query(ref(db, 'roomKeys'));
-  messageRef.once('value', (data) => {
-    listenerFunction(data);
+  get(child(ref(db), 'roomKeys')).then((snapshot) => {
+    listenerFunction(snapshot);
   });
 }
 //#endregion
@@ -54,9 +53,8 @@ export function writePlayersGlobalLeave (name, roomName) {
 }
 
 export function getPlayersGlobalDB (roomName, listenerFunction) {
-  const messageRef = query(ref(db, roomName + '/players'));
-  messageRef.once('value', (data) => {
-    listenerFunction(data);
+  get(child(ref(db), roomName + '/players')).then((snapshot) => {
+    listenerFunction(snapshot);
   });
 }
 
@@ -168,11 +166,13 @@ export function removeLocalDBMessageListeners () {
 //#region FUNCTIONS
 const functions = getFunctions();
 
-export function firebaseCreateRoom(username, callback) {
+export function firebaseCreateRoom(name, callback) {
   const createRoom = httpsCallable(functions, 'createRoom');
-  createRoom({ username: username })
+  createRoom({username: name})
     .then((result) => {
-      callback(result);
+      callback(result.data);
+    }).catch((error) => {
+      console.log(error);
     });
 }
 //#endregion

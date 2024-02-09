@@ -1,108 +1,122 @@
-const {onRequest} = require("firebase-functions/v2/https");
-const {logger} = require("firebase-functions");
-const admin = require("firebase-admin");
+const {onCall} = require('firebase-functions/v2/https');
+const {logger} = require('firebase-functions');
+const admin = require('firebase-admin');
 
-exports.createRoom = onRequest((request, response) => {
+exports.createRoom = onCall((request) => {
   const username = request.data.username;
-  logger.info("Create room called by username: " + username, {structuredData: true});
+  logger.info('Create room called by username: ' + username, {structuredData: true});
 
-  // Get constants
-  admin.database().ref('constants').once('value', (snapshot) => {
+  const roomPromise = new Promise((resolve, reject) => {
+    // Get constants
+    admin.database().ref('constants').once('value', (snapshot) => {
 
-    const constants = snapshot.val();
+      const constants = snapshot.val();
 
-    // Create random, unused, roomKey
-    admin.database().ref('roomKeys').once('value', (snapshot) => {
-      const roomKeys = snapshot.val();
-      let roomKeyValid = true; // assume roomKey is valid
-      let roomKey = '';
-      // Generate roomKeys until we get a unique one
-      while (!roomKeyValid) {
-        roomKey = '';
-        for (let i = 0; i < 4; i++) {
-          roomKey += Math.floor(Math.random() * 36).toString(36).toUpperCase();
+      // Create random, unused, roomKey
+      admin.database().ref('roomKeys').once('value', (snapshot) => {
+        const roomKeys = snapshot.val();
+        let roomKeyValid = true; // assume roomKey is valid
+        let roomKey = '';
+        // Generate roomKeys until we get a unique one
+        do {
+          roomKey = '';
+          for (let i = 0; i < 4; i++) {
+            roomKey += Math.floor(Math.random() * 36).toString(36).toUpperCase();
+          }
+
+          for (const k in roomKeys) {
+            // Gereated roomkey matches one in database, it is invalid
+            if (roomKey == k) {
+              roomKeyValid = false;
+              break;
+            }
+          }
+        } while (!roomKeyValid);
+
+        const timestamp = Date.now();
+
+        // Set roomKey in DB
+        admin.database().ref('roomKeys/' + roomKey).set({
+          timestamp: timestamp,
+        });
+
+        // Generate map
+        // 1. Initialize empty map
+        // 2. Start with four way in the center of the map
+        // 3. For each open door that does not already have a connecting tile,
+        //    recurse down that path and create a new tile
+        // 4. New tile is picked randomly from viable tiles based on weights for tile types (1,2,3,4 door)
+        //    (single door rooms can't be picked for first few tiles in a path)
+        // 5. When we are in a single door room, return back up the path
+        // 6. Format map for database
+
+        // 1.
+        const mapWidth = constants.mapWidth;
+        const mapHeight = constants.mapHeight;
+        const map = [];
+        for (let i = 0; i < mapHeight; i++) {
+          const row = [];
+          for (let j = 0; j < mapWidth; j++) {
+            row.push('');
+          }
+          map.push(row);
         }
-        
-        for (const k in roomKeys) {
-          // Gereated roomkey matches one in database, it is invalid
-          if (roomKey == k) {
-            roomKeyValid = false;
-            break;
+
+        // 2.
+        const startY = Math.floor(mapHeight / 2);
+        const startX = Math.floor(mapWidth / 2);
+        map[startY][startX] = 'NESW';
+
+        // 3.
+        traversePath(map, startY, startX, mapHeight, mapWidth, constants.roomTypes, 0);
+
+        // 6.
+        const dbMap = {};
+        for (let i = 0; i < mapHeight; i++) {
+          for (let j = 0; j < mapWidth; j++) {
+            dbMap[i + '_' + j] = {
+              mapKey: map[i][j],
+            };
           }
         }
-      }
 
-      // Set roomKey in DB
-      admin.database().ref('roomKeys/' + roomKey).set({
-        timestamp: Date.now()
-      });
+        // Save map to DB
+        admin.database().ref(roomKey + '/map').set(dbMap);
 
-      // Generate map
-      // 1. Initialize empty map
-      // 2. Start with four way in the center of the map
-      // 3. For each open door that does not already have a connecting tile, recurse down that path and create a new tile
-      // 4. New tile is picked randomly from viable tiles based on weights for tile types (1,2,3,4 door) (single door rooms can't be picked for first few tiles in a path)
-      // 5. When we are in a single door room, return back up the path
-      // 6. Format map for database
+        // Save player as leader to DB
+        admin.database().ref(roomKey + '/players/' + username).set({
+          leader: true,
+          timestamp: timestamp,
+        });
 
-      // 1.
-      const mapWidth = constants.mapWidth;
-      const mapHeight = constants.mapHeight;
-      const map = [];
-      for (let i = 0; i < mapHeight; i++) {
-        const row = [];
-        for (let j = 0; j < mapWidth; j++) {
-          row.push('');
-        }
-        map.push(row);
-      }
-
-      // 2.
-      let startY = Math.floor(mapHeight / 2);
-      let startX = Math.floor(mapWidth / 2);
-      map[startY][startX] = 'NESW';
-
-      // 3.
-      traversePath(map, startY, startX, mapHeight, mapWidth, constants.roomTypes, 0);
-
-      // 6.
-      const dbMap = {};
-      for (let i = 0; i < mapHeight; i++) {
-        for (let j = 0; j < mapWidth; j++) {
-          dbMap[i + '_' + j] = {
-            mapKey: map[i][j]
-          };
-        }
-      }
-
-      // Save map to DB
-      admin.database().ref(roomKey + '/map').set(dbMap);
-
-      // Send roomKey back to client
-      response.send({
-        roomKey: roomKey
+        // Send roomKey back to client
+        resolve({
+          roomKey: roomKey,
+        });
       });
     });
   });
+
+  return roomPromise;
 });
 
-function traversePath (map, y, x, mapHeight, mapWidth, roomTypes, iteration) {
+function traversePath(map, y, x, mapHeight, mapWidth, roomTypes, iteration) {
   const currentTile = map[y][x];
   iteration++;
-  
+
   // Get available paths
-  const paths = currentTile.replace(/_/g,'').split('');
+  const paths = currentTile.replace(/_/g, '').split('');
 
   // 5. If we are in single door room, recurse back up
   if (paths.length == 1) {
     return;
   }
 
-  for (var i = paths.length - 1; i > 0; i--) {
-      var j = Math.floor(Math.random() * (i + 1));
-      var temp = paths[i];
-      paths[i] = paths[j];
-      paths[j] = temp;
+  for (let i = paths.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    const temp = paths[i];
+    paths[i] = paths[j];
+    paths[j] = temp;
   }
 
   for (let i = 0; i < paths.length; i++) {
@@ -125,7 +139,7 @@ function traversePath (map, y, x, mapHeight, mapWidth, roomTypes, iteration) {
 
     // 4. Try and create tile if it doesn't already exist and is inside the map
     if (nextY >= 0 && nextY < mapHeight && nextX >= 0 && nextX < mapWidth && map[nextY][nextX] == '') {
-      let availableTiles = getAvailableTiles(map, nextY, nextX, mapHeight, mapWidth, roomTypes);
+      const availableTiles = getAvailableTiles(map, nextY, nextX, mapHeight, mapWidth, roomTypes);
       const oneDoorRooms = [];
       const twoDoorRooms = [];
       const threeDoorRooms = [];
@@ -133,7 +147,7 @@ function traversePath (map, y, x, mapHeight, mapWidth, roomTypes, iteration) {
 
       if (availableTiles.length > 0) {
         for (let j = 0; j < availableTiles.length; j++) {
-          switch(availableTiles[j].replace(/_/g,'').length) {
+          switch (availableTiles[j].replace(/_/g, '').length) {
             case 1:
               oneDoorRooms.push(availableTiles[j]);
               break;
@@ -151,10 +165,14 @@ function traversePath (map, y, x, mapHeight, mapWidth, roomTypes, iteration) {
 
         // Distribute random range selection across 0-100 between room types based on initial weights and iterations
         const initialWeight = 12;
-        const oneDoorRange = Math.floor(Math.max((iteration * 2) - initialWeight, 0)) * Math.min(oneDoorRooms.length, 1);
-        const twoDoorRange = Math.floor(Math.max(Math.min((iteration * 3) - initialWeight, initialWeight), 0)) * Math.min(twoDoorRooms.length, 1);
-        const threeDoorRange = Math.floor(Math.max(initialWeight - (iteration * 2), 0)) * Math.min(threeDoorRooms.length, 1);
-        const fourDoorRange = Math.floor(Math.max(initialWeight - (iteration * 3), 0)) * Math.min(fourDoorRooms.length, 1);
+        const oneDoorRange = Math.floor(Math.max((iteration * 2) - initialWeight, 0)) *
+          Math.min(oneDoorRooms.length, 1);
+        const twoDoorRange = Math.floor(Math.max(Math.min((iteration * 3) - initialWeight, initialWeight), 0)) *
+          Math.min(twoDoorRooms.length, 1);
+        const threeDoorRange = Math.floor(Math.max(initialWeight - (iteration * 2), 0)) *
+          Math.min(threeDoorRooms.length, 1);
+        const fourDoorRange = Math.floor(Math.max(initialWeight - (iteration * 3), 0)) *
+          Math.min(fourDoorRooms.length, 1);
         const totalRange = oneDoorRange + twoDoorRange + threeDoorRange + fourDoorRange;
         let selectedTile = '';
         // Fix for if iterations are too low and not very many room options
@@ -195,7 +213,7 @@ function traversePath (map, y, x, mapHeight, mapWidth, roomTypes, iteration) {
   return;
 }
 
-function getAvailableTiles (map, y, x, mapHeight, mapWidth, roomTypes) {
+function getAvailableTiles(map, y, x, mapHeight, mapWidth, roomTypes) {
   // Gather viable tile properties based on the following factors:
   // 1. Tested adjacent tile is within the bounds of the grid AND
   // 2. Tested adjacent tile is undiscovered on server OR
@@ -223,7 +241,7 @@ function getAvailableTiles (map, y, x, mapHeight, mapWidth, roomTypes) {
   } else {
     notSearchTerms.push('E');
   }
-  
+
   if ((y + 1) < mapHeight && map[y + 1][x].includes('N')) {
     hasToHaveSouth = true;
     searchTerms.push('S');
@@ -241,7 +259,7 @@ function getAvailableTiles (map, y, x, mapHeight, mapWidth, roomTypes) {
   } else {
     notSearchTerms.push('W');
   }
-  
+
   // Use search terms to gather list of tiles to choose from
   const viableTiles = [];
   const allTiles = Object.keys(roomTypes);

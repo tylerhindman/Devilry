@@ -31,8 +31,8 @@ const mapVoid = '░';
 const mapUndiscovered = '▒';
 const mapDiscovered = '▓';
 const mapPlayer = 'Φ';
-const mapWidth = 10;
-const mapHeight = 6;
+const mapWidth = 13;
+const mapHeight = 7;
 let mapMaster = [];
 let mapReference = [];
 const playerLocation = {y: 0, x: 0};
@@ -258,17 +258,16 @@ function devilryStart() {
 function createRoom() {
   let usernameFieldValue = loginWindowElementRef.querySelector('#login-window-name-input').value;
   if (usernameFieldValue) {
-    loginWindowElementRef.style.display = 'none';
-    loginWindowCoverElementRef.style.display = 'none';
     username = usernameFieldValue;
     utils.setCookie('username', username);
     // Call function to create room here
     firebaseUtil.firebaseCreateRoom(username, (result) => {
+      loginWindowElementRef.style.display = 'none';
       roomKey = result.roomKey;
       utils.setCookie('roomKey', roomKey);
 
       // Go to lobby
-      enterLobby();
+      enterLobby(true);
     });
   }
 }
@@ -297,7 +296,7 @@ function login() {
       // Continue to username verification
       } else {
         // Check against server if username is valid in room
-        firebaseUtil.getPlayersGlobalDB((snapshot) => {
+        firebaseUtil.getPlayersGlobalDB(roomKeyFieldValue, (snapshot) => {
           let validUsername = true; // Start with assumption that name is valid
           if (snapshot.exists()) {
             const usernames = snapshot.val();
@@ -322,7 +321,7 @@ function login() {
             utils.setCookie('username', username);
             utils.setCookie('roomKey', roomKey);
             // Go to lobby
-            enterLobby();
+            enterLobby(false);
           }
         });
       }
@@ -333,7 +332,7 @@ function login() {
 function initRoomListeners() {
   // ----- Set message listener for players global
   firebaseUtil.setPlayersGlobalDBMessageListener(roomKey, function (snapshot) {
-    playersGlobalUpdate();
+    playersGlobalUpdate(snapshot);
   });
   // ----- Set message listener for global chat window
   firebaseUtil.setGlobalChatDBMessageListener(roomKey, function (snapshot) {
@@ -342,21 +341,27 @@ function initRoomListeners() {
   // Initialize Map
   initializeMap();
   // ----- Set message listener for global map
-  firebaseUtil.setGlobalMapDBMessageListener(roomKey, function (snapshot) {
-    globalMapUpdate(snapshot);
-  });
+  // firebaseUtil.setGlobalMapDBMessageListener(roomKey, function (snapshot) {
+  //   globalMapUpdate(snapshot);
+  // });
 }
 
-function enterLobby() {
+function enterLobby(leader) {
   initRoomListeners();
   loginWindowElementRef.style.display = 'none';
   lobbyWindowElementRef.style.display = 'block';
   lobbyWindowElementRef.querySelector('#lobby-room-key').innerHTML = roomKey;
+
+  if (leader) {
+    lobbyWindowElementRef.querySelector('#lobby-window-start-button').style.display = 'block';
+  } else {
+    lobbyWindowElementRef.querySelector('#lobby-window-start-button').style.display = 'none';
+  }
 }
 
 function playersGlobalUpdate(snapshot) {
   // Only update if data exists
-  if (snapshot.exists()) {
+  if (snapshot && snapshot.exists()) {
     const playersServer = snapshot.val();
     
     // Update local cache with server player list

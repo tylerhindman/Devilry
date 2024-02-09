@@ -22,7 +22,9 @@ Data Model:
         }
     }
     "roomKeys": {
-        "[roomKey]": "[timestamp]",
+        "[roomKey]": {
+            "timestamp": "[timestamp]"
+        },
         ...
     }
     "[roomKey]": {
