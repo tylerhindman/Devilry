@@ -26,6 +26,14 @@ let globalListenerList = [];
 
 let localListenerList = [];
 
+//#region CONSTANTS
+export function getConstantsDB (listenerFunction) {
+  get(child(ref(db), 'constants')).then((snapshot) => {
+    listenerFunction(snapshot);
+  });
+}
+//#endregion
+
 //#region ROOM KEYS
 export function writeRoomDestroy (roomName) {
   remove(ref(db, 'roomKeys/' + roomName));
@@ -43,9 +51,14 @@ export function writePlayersGlobalJoin (name, roomName) {
   const db = getDatabase();
   const timestamp = Date.now();
   set(ref(db, roomName + '/players/' + name), {
-    leader: false, // Leader only gets set true from room creation
+    leader: false,
     timestamp: timestamp
   });
+}
+
+export function writePlayersGlobalNewLeader (name, roomName) {
+  const db = getDatabase();
+  set(ref(db, roomName + '/players/' + name + '/leader'), true);
 }
 
 export function writePlayersGlobalLeave (name, roomName) {
@@ -59,7 +72,7 @@ export function getPlayersGlobalDB (roomName, listenerFunction) {
 }
 
 export function setPlayersGlobalDBMessageListener (roomName, listenerFunction) {
-  const messageRef = query(ref(db, roomName + '/players'));
+  const messageRef = query(ref(db, roomName + '/players'), orderByChild('timestamp'));
   globalListenerList.push(messageRef);
   onValue(messageRef, (snapshot) => {
     listenerFunction(snapshot);

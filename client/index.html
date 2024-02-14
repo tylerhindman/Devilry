@@ -80,16 +80,19 @@
 
       <div class="login-window" id="login-window">
         <p class="login-window-label" style="top: 25px;">Name</p>
-        <input class="login-window-input" id="login-window-name-input" style="top: 25px;" tabindex="0"/>
+        <input class="login-window-input" id="login-window-name-input" style="top: 25px;" tabindex="0" autocomplete="off"/>
         <button class="create-room-button" id="create-room-button" tabindex="0">CREATE ROOM</button>
         <p class="or-label">- OR -</p>
         <p class="login-window-label" style="top: 125px;">Room Key</p>
-        <input class="login-window-input" id="login-window-room-input" style="top: 125px;" tabindex="0"/>
+        <input class="login-window-input" id="login-window-room-input" style="top: 125px; text-transform: uppercase;"
+          maxlength="4" tabindex="0" spellcheck="false" autocomplete="off"/>
         <button class="login-window-button" id="login-window-button" tabindex="0">LOGIN</button>
+        <p class="login-error-text" id="login-username-error" style="display: none;">Username already in use in room.</p>
+        <p class="login-error-text" id="login-room-key-error" style="display: none;">Room does not exist.</p>
       </div>
 
-      <div class="lobby-window" id="lobby-window" style="display: none;">
-        <p class="lobby-room-label" style="top: 25px;">Room Key: <span class="lobby-room-key" id="lobby-room-key"></span></p>
+      <div class="lobby-window" id="lobby-window" style="display: none; height: 128px;">
+        <p class="lobby-room-label">Room Key: <span class="lobby-room-key" id="lobby-room-key"></span></p>
         <button class="lobby-window-button" id="lobby-window-cancel-button" tabindex="0">LEAVE</button>
         <button class="lobby-window-button" id="lobby-window-start-button" tabindex="0">START GAME</button>
         <p class="lobby-players-label">Players <span class="lobby-players-count">(<span id="lobby-players-count"></span>/<span id="lobby-players-max"></span>)</span>:</p>

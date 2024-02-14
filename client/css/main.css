@@ -184,7 +184,7 @@ body {
   left: 50%;
   transform: translate(-50%, -50%);
   width: 400px;
-  height: 295px;
+  height: 325px;
   border: 5px solid black;
   background-color: beige;
 }
@@ -232,6 +232,14 @@ body {
   position: relative;
 }
 
+.login-error-text {
+  text-align: center;
+  font-size: 18px;
+  color: red;
+  top: 170px;
+  position: relative;
+}
+
 .login-window-desktop-cover {
   width: 100%;
   height: 100%;
@@ -247,14 +255,14 @@ body {
   left: 50%;
   transform: translate(-50%, -50%);
   width: 400px;
-  height: 200px;
   border: 5px solid black;
   background-color: beige;
 }
 
 .lobby-room-label {
   font-size: 15px;
-  left: 100px;
+  top: 13px;
+  left: 121px;
   margin-block-start: 0px;
   margin-block-end: 0px;
   position: relative;
@@ -266,16 +274,17 @@ body {
 }
 
 .lobby-window-button {
-  width: 70px;
-  height: 25px;
-  top: 100px;
-  left: -50px;
+  width: 108px;
+  height: 29px;
+  top: 27px;
+  left: 85px;
   position: relative;
 }
 
 .lobby-players-label {
   font-size: 15px;
-  left: 200px;
+  top: 42px;
+  left: 131px;
   margin-block-start: 0px;
   margin-block-end: 0px;
   position: relative;
@@ -286,12 +295,21 @@ body {
 }
 
 .lobby-players-list {
-  
+  position: relative;
+  top: 44px;
+  left: 14px;
+  width: 90%;
 }
 
 .lobby-player-name {
   font-size: 15px;
-  color: rgb(255, 255, 0);
+  text-align: center;
+  margin-block-start: 7px;
+  margin-block-end: 0px;
+}
+
+.lobby-player-name-other {
+  color: black;
 }
 
 .lobby-player-name-user {

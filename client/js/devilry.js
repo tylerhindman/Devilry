@@ -31,8 +31,6 @@ const mapVoid = '░';
 const mapUndiscovered = '▒';
 const mapDiscovered = '▓';
 const mapPlayer = 'Φ';
-const mapWidth = 13;
-const mapHeight = 7;
 let mapMaster = [];
 let mapReference = [];
 const playerLocation = {y: 0, x: 0};
@@ -41,7 +39,7 @@ const mapTheme = 'castle';
 
 // Game props
 let gameStarted = false;
-const cfg_maxPlayers = 10;
+let constants = null;
 
 // Data models - global
 let playersGlobal = {};
@@ -237,12 +235,7 @@ function devilryStart() {
   // Set listener on login buttons
   loginWindowElementRef.querySelector('#login-window-button').addEventListener('click', login);
   loginWindowElementRef.querySelector('#create-room-button').addEventListener('click', createRoom);
-  // ***Commented out, have to click Create Room
-  // loginWindowElementRef.querySelector('#login-window-name-input').addEventListener('keyup', function (event) {
-  //   if ((event.key === 'Enter' || event.keyCode === 13)) {
-  //     login();
-  //   }
-  // });
+  // Enter key shortcut on room key input
   loginWindowElementRef.querySelector('#login-window-room-input').addEventListener('keyup', function (event) {
     if ((event.key === 'Enter' || event.keyCode === 13)) {
       login();
@@ -251,8 +244,16 @@ function devilryStart() {
 
   // ------ Get Lobby window refs + setup
   lobbyWindowElementRef = document.querySelector('#lobby-window');
-  lobbyWindowElementRef.querySelector('#lobby-players-max').innerHTML = cfg_maxPlayers;
-  // TODO Set listeners for lobby buttons here
+  lobbyWindowElementRef.querySelector('#lobby-window-cancel-button').addEventListener('click', leaveLobby);
+  lobbyWindowElementRef.querySelector('#lobby-window-start-button').addEventListener('click', startGame);
+
+  // ------ Get constants
+  firebaseUtil.getConstantsDB((snapshot) => {
+    if (snapshot.exists()) {
+      constants = snapshot.val();
+      lobbyWindowElementRef.querySelector('#lobby-players-max').innerHTML = constants.maxPlayers;
+    }
+  });
 }
 
 function createRoom() {
@@ -275,7 +276,10 @@ function createRoom() {
 function login() {
   let usernameFieldValue = loginWindowElementRef.querySelector('#login-window-name-input').value;
   let roomKeyFieldValue = loginWindowElementRef.querySelector('#login-window-room-input').value;
+  loginWindowElementRef.querySelector('#login-room-key-error').style.display = 'none';
+  loginWindowElementRef.querySelector('#login-username-error').style.display = 'none';
   if (usernameFieldValue && roomKeyFieldValue) {
+    roomKeyFieldValue = roomKeyFieldValue.toUpperCase();
     // Check against DB if room key is valid
     firebaseUtil.getRoomKeysDB((snapshot) => {
       let validRoomKey = false; // Start with assumption that room is invalid
@@ -292,7 +296,7 @@ function login() {
 
       // Show roomkey error
       if (!validRoomKey) {
-
+        loginWindowElementRef.querySelector('#login-room-key-error').style.display = 'block';
       // Continue to username verification
       } else {
         // Check against server if username is valid in room
@@ -301,8 +305,8 @@ function login() {
           if (snapshot.exists()) {
             const usernames = snapshot.val();
             for (const u in usernames) {
-              // Invalid if found in database list
-              if (usernameFieldValue == u) {
+              // Invalid if found in database list (case insensitive)
+              if (usernameFieldValue.toLowerCase() == u.toLowerCase()) {
                 validUsername = false;
                 break;
               }
@@ -311,7 +315,7 @@ function login() {
 
           // Show username error
           if (!validUsername) {
-            
+            loginWindowElementRef.querySelector('#login-username-error').style.display = 'block';
           // Continue with login
           } else {
             loginWindowElementRef.style.display = 'none';
@@ -327,6 +331,29 @@ function login() {
       }
     });
   }
+}
+
+function leaveLobby() {
+  firebaseUtil.writePlayersGlobalLeave(username, roomKey);
+
+  loginWindowElementRef.querySelector('#login-window-room-input').value = roomKey;
+
+  username = null;
+  roomKey = null;
+  utils.deleteCookie('username');
+  utils.deleteCookie('roomKey');
+
+  // Remove DB listeners
+  firebaseUtil.removeGlobalDBMessageListeners();
+
+  // Reinstate login window
+  lobbyWindowElementRef.style.display = 'none';
+  loginWindowCoverElementRef.style.display = 'block';
+  loginWindowElementRef.style.display = 'block';
+}
+
+function startGame() {
+
 }
 
 function initRoomListeners() {
@@ -349,20 +376,38 @@ function initRoomListeners() {
 function enterLobby(leader) {
   initRoomListeners();
   loginWindowElementRef.style.display = 'none';
+  loginWindowElementRef.querySelector('#login-room-key-error').style.display = 'none';
+  loginWindowElementRef.querySelector('#login-username-error').style.display = 'none';
+
   lobbyWindowElementRef.style.display = 'block';
   lobbyWindowElementRef.querySelector('#lobby-room-key').innerHTML = roomKey;
 
   if (leader) {
-    lobbyWindowElementRef.querySelector('#lobby-window-start-button').style.display = 'block';
+    setupLobbyWindowLeader();
   } else {
-    lobbyWindowElementRef.querySelector('#lobby-window-start-button').style.display = 'none';
+    // Add non-leader player to list in db
+    firebaseUtil.writePlayersGlobalJoin(username, roomKey);
+    setupLobbyWindowNonLeader();
   }
+}
+
+function setupLobbyWindowLeader() {
+  lobbyWindowElementRef.querySelector('#lobby-window-start-button').style.display = 'inline-block';
+  lobbyWindowElementRef.querySelector('#lobby-window-cancel-button').style.left = '85px';
+  lobbyWindowElementRef.querySelector('#lobby-window-start-button').style.left = '85px';
+}
+
+function setupLobbyWindowNonLeader() {
+  lobbyWindowElementRef.querySelector('#lobby-window-start-button').style.display = 'none';
+  lobbyWindowElementRef.querySelector('#lobby-window-cancel-button').style.left = '136px';
 }
 
 function playersGlobalUpdate(snapshot) {
   // Only update if data exists
   if (snapshot && snapshot.exists()) {
     const playersServer = snapshot.val();
+    const lobbyWindowBaseHeight = 128;
+    const lobbyWindowPlayerAddHeight = 22;
     
     // Update local cache with server player list
     playersGlobal = playersServer;
@@ -370,13 +415,36 @@ function playersGlobalUpdate(snapshot) {
     // Update lobby player list
     const lobbyPlayersListElementRef = lobbyWindowElementRef.querySelector('#lobby-players-list');
     lobbyPlayersListElementRef.innerHTML = '';
-    for (const playerName in playersGlobal) {
+    let lobbyWindowHeight = lobbyWindowBaseHeight;
+    let leaderExists = false;
+    let firstRun = true;
+    let setNewLeader = false;
+    snapshot.forEach((childSnapshot) => {
+      const playerName = childSnapshot.key;
+      
+      // Check if there exists no leader, if not, set top player as new leader (if we are top player)
+      if (playersGlobal[playerName].leader) {
+        leaderExists = true;
+      } else if (firstRun && username == playerName && !playersGlobal[playerName].leader) {
+        setNewLeader = true;
+      }
+
       const p = document.createElement("p");
-      p.className = playerName == username ? 'lobby-player-name-user' : 'lobby-player-name';
+      p.className = 'lobby-player-name ' + (playerName == username ? 'lobby-player-name-user' : 'lobby-player-name-other');
       p.innerHTML = playerName;
 
       lobbyPlayersListElementRef.appendChild(p);
+      lobbyWindowHeight += lobbyWindowPlayerAddHeight;
+
+      firstRun = false;
+    });
+    // Set self as new leader if none exists and we are top of the list
+    if (!leaderExists && setNewLeader) {
+      firebaseUtil.writePlayersGlobalNewLeader(username, roomKey);
+      setupLobbyWindowLeader();
     }
+
+    lobbyWindowElementRef.style.height = lobbyWindowHeight + 'px';
     // Update player count
     lobbyWindowElementRef.querySelector('#lobby-players-count').innerHTML = Object.keys(playersGlobal).length.toString();
   }
@@ -714,10 +782,10 @@ function movePlayer(direction) {
   if ((direction == 'NORTH' || direction == 'UP') && playerLocation.y > 0
         && mapMaster[playerLocation.y][playerLocation.x].includes('N')) {
     playerEnterRoom(playerLocation.y - 1, playerLocation.x);
-  } else if ((direction == 'EAST' || direction == 'RIGHT') && playerLocation.x < (mapWidth - 1)
+  } else if ((direction == 'EAST' || direction == 'RIGHT') && playerLocation.x < (constants.mapWidth - 1)
                 && mapMaster[playerLocation.y][playerLocation.x].includes('E')) {
     playerEnterRoom(playerLocation.y, playerLocation.x + 1);
-  } else if ((direction == 'SOUTH' || direction == 'DOWN') && playerLocation.y < (mapHeight - 1)
+  } else if ((direction == 'SOUTH' || direction == 'DOWN') && playerLocation.y < (constants.mapHeight - 1)
                 && mapMaster[playerLocation.y][playerLocation.x].includes('S')) {
     playerEnterRoom(playerLocation.y + 1, playerLocation.x);
   } else if ((direction == 'WEST' || direction == 'LEFT') && playerLocation.x > 0
@@ -871,10 +939,10 @@ function setupMapWindow(windowRef, name, width, height) {
 function initializeMap() {
   mapMaster = [];
   mapReference = [];
-  for (let i = 0; i < mapHeight; i++) {
+  for (let i = 0; i < constants.mapHeight; i++) {
     const row = [];
     const referenceRow = [];
-    for (let j = 0; j < mapWidth; j++) {
+    for (let j = 0; j < constants.mapWidth; j++) {
       row.push('');
       referenceRow.push('');
     }
@@ -906,7 +974,7 @@ function globalMapUpdate(snapshot) {
     globalMapFirstLoadFlag = true;
     // Set player location & starting room key
     // Setting player statically to bottom left, will change later to randomize position
-    playerEnterRoom(mapHeight - 1, 0);
+    playerEnterRoom(constants.mapHeight - 1, 0);
   }
 }
 
@@ -946,19 +1014,19 @@ function playerEnterRoom(y, x) {
       notSearchTerms.push('N');
     }
 
-    if ((x + 1) < mapWidth && mapReference[y][x + 1].includes('W')) {
+    if ((x + 1) < constants.mapWidth && mapReference[y][x + 1].includes('W')) {
       hasToHaveEast = true;
       searchTerms.push('E');
-    } else if ((x + 1) < mapWidth && (!mapReference[y][x + 1])) {
+    } else if ((x + 1) < constants.mapWidth && (!mapReference[y][x + 1])) {
       searchTerms.push('E');
     } else {
       notSearchTerms.push('E');
     }
     
-    if ((y + 1) < mapHeight && mapReference[y + 1][x].includes('N')) {
+    if ((y + 1) < constants.mapHeight && mapReference[y + 1][x].includes('N')) {
       hasToHaveSouth = true;
       searchTerms.push('S');
-    } else if ((y + 1) < mapHeight && (!mapReference[y + 1][x])) {
+    } else if ((y + 1) < constants.mapHeight && (!mapReference[y + 1][x])) {
       searchTerms.push('S');
     } else {
       notSearchTerms.push('S');
@@ -1015,15 +1083,15 @@ function playerEnterRoom(y, x) {
 
 function buildMapText() {
   let mapText = '';
-  for (let i = 0; i < mapHeight; i++) {
-    for (let j = 0; j < mapWidth; j++) {
+  for (let i = 0; i < constants.mapHeight; i++) {
+    for (let j = 0; j < constants.mapWidth; j++) {
       let tile = '';
       if (!mapMaster[i][j]) {
         tile = mapVoid;
         // Determine if nearby room is undiscovered but available based on room detail key
         if ((i - 1) >= 0 && mapMaster[i - 1][j].includes('S') ||
-              (j + 1) < mapWidth && mapMaster[i][j + 1].includes('W') ||
-              (i + 1) < mapHeight && mapMaster[i + 1][j].includes('N') ||
+              (j + 1) < constants.mapWidth && mapMaster[i][j + 1].includes('W') ||
+              (i + 1) < constants.mapHeight && mapMaster[i + 1][j].includes('N') ||
               (j - 1) >= 0 && mapMaster[i][j - 1].includes('E')) {
           tile = mapUndiscovered;
         }
@@ -1035,11 +1103,11 @@ function buildMapText() {
         tile = '<span class="map-player">' + mapPlayer + '</span>';
       }
       mapText += tile;
-      if (j < (mapWidth - 1)) {
+      if (j < (constants.mapWidth - 1)) {
         mapText += '  ';
       }
     }
-    if (i < (mapHeight - 1)) {
+    if (i < (constants.mapHeight - 1)) {
       mapText += '<br>\r\n<br>\r\n';
     }
   }
