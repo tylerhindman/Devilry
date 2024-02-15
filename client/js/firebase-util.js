@@ -34,6 +34,22 @@ export function getConstantsDB (listenerFunction) {
 }
 //#endregion
 
+//#region GAME STATUS
+export function setGameStatusDBMessageListener (roomName, listenerFunction) {
+  const messageRef = query(ref(db, roomName + '/gameStatus'));
+  globalListenerList.push(messageRef);
+  onValue(messageRef, (snapshot) => {
+    listenerFunction(snapshot);
+  });
+}
+
+export function writeGameStatusInprogress (roomName) {
+  const db = getDatabase();
+  set(ref(db, roomName + '/gameStatus'), 'inprogress');
+  set(ref(db, 'roomKeys/' + roomName + '/gameStatus'), 'inprogress');
+}
+//#endregion
+
 //#region ROOM KEYS
 export function writeRoomDestroy (roomName) {
   remove(ref(db, 'roomKeys/' + roomName));
@@ -101,19 +117,17 @@ export function setGlobalChatDBMessageListener (roomName, listenerFunction) {
 //#endregion
 
 //#region MAP
-export function writeGlobalMapUpdate (roomName, y, x, mapKey) {
-  const db = getDatabase();
-  set(ref(db, roomName + '/map/' + y + '_' + x), {
-    mapKey: mapKey
-  });
-}
-
-export function setGlobalMapDBMessageListener (roomName, listenerFunction) {
-  const messageRef = query(ref(db, roomName + '/map'));
+export function setGlobalMapTileDataDBMessageListener (roomName, listenerFunction) {
+  const messageRef = query(ref(db, roomName + '/map/tileData'));
   globalListenerList.push(messageRef);
   onValue(messageRef, (snapshot) => {
     listenerFunction(snapshot);
   });
+}
+
+export function writeGlobalMapTileDiscovered (roomName, y, x) {
+  const db = getDatabase();
+  set(ref(db, roomName + '/map/tileData/' + y + '_' + x + '/discovered'), true);
 }
 //#endregion
 

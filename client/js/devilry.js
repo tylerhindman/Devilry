@@ -4,6 +4,7 @@ import * as spells from "./data/spells.js";
 import * as utils from "./util.js";
 import '../css/main.css';
 
+//#region PROPS
 let draggedWindow = null;
 let resizedAnchor = null;
 let draggedWindowOffsetX = 0;
@@ -21,12 +22,15 @@ const spellRandomChatTimeMin = 5;
 const spellRandomChatTimeMax = 25;
 const spellRandomCharMin = 8;
 const spellRandomCharMax = 16;
+//#endregion
 
-// User vars
+//#region USER VARS
 let username = null;
 let roomKey = null;
+let isLeader = false;
+//#endregion
 
-// Map vars
+//#region MAP VARS
 const mapVoid = '░';
 const mapUndiscovered = '▒';
 const mapDiscovered = '▓';
@@ -36,17 +40,22 @@ let mapReference = [];
 const playerLocation = {y: 0, x: 0};
 const mapDetailElements = [];
 const mapTheme = 'castle';
+//#endregion
 
-// Game props
-let gameStarted = false;
+//#region GAME PROPS
+let gameStatus = null;
 let constants = null;
+//#endregion
 
+//#region DATA MODELS
 // Data models - global
 let playersGlobal = {};
 
 // Data models - local
 let playersLocal = {};
+//#endregion
 
+//#region WINDOW REFERENCES
 // Chat window references
 let globalChatElementRef = null;
 let localChatElementRef = null;
@@ -68,7 +77,9 @@ let loginWindowCoverElementRef = null;
 
 // Lobby window references
 let lobbyWindowElementRef = null;
+//#endregion
 
+//#region GAME SETUP
 function devilryStart() {
   // ---------- Set listeners for icon buttons
   const globalChatIcon = document.querySelector('#global-chat-icon');
@@ -123,13 +134,14 @@ function devilryStart() {
         break;
       case 3:
         newWindowElement.id = 'map-window-zoomed-out';
-        setupMapWindow(newWindowElement, 'MAP -', 250, 275);
+        setupMapWindow(newWindowElement, 'MAP -', 290, 300);
         mapZoomedOutElementRef = newWindowElement;
         break;
       case 4:
         newWindowElement.id = 'map-window-zoomed-in';
-        setupMapWindow(newWindowElement, 'MAP +', 200, 230);
+        setupMapWindow(newWindowElement, 'MAP +', 525, 230);
         mapZoomedInElementRef = newWindowElement;
+        mapZoomedInElementRef.querySelector('.draggable-window-body').classList.add('map-zoomed-in-body');
         break;
     }
 
@@ -267,8 +279,9 @@ function createRoom() {
       roomKey = result.roomKey;
       utils.setCookie('roomKey', roomKey);
 
+      isLeader = true;
       // Go to lobby
-      enterLobby(true);
+      enterLobby();
     });
   }
 }
@@ -279,17 +292,22 @@ function login() {
   loginWindowElementRef.querySelector('#login-room-key-error').style.display = 'none';
   loginWindowElementRef.querySelector('#login-username-error').style.display = 'none';
   loginWindowElementRef.querySelector('#login-room-full-error').style.display = 'none';
+  loginWindowElementRef.querySelector('#login-game-in-progress-error').style.display = 'none';
   if (usernameFieldValue && roomKeyFieldValue) {
     roomKeyFieldValue = roomKeyFieldValue.toUpperCase();
     // Check against DB if room key is valid
     firebaseUtil.getRoomKeysDB((snapshot) => {
       let validRoomKey = false; // Start with assumption that room is invalid
+      let gameAvailable = false;
       if (snapshot.exists()) {
         const roomKeys = snapshot.val();
         for (const k in roomKeys) {
           // valid if found in database list
           if (roomKeyFieldValue == k) {
             validRoomKey = true;
+            if (roomKeys[k].gameStatus == 'lobby') {
+              gameAvailable = true;
+            }
             break;
           }
         }
@@ -298,6 +316,9 @@ function login() {
       // Show roomkey error
       if (!validRoomKey) {
         loginWindowElementRef.querySelector('#login-room-key-error').style.display = 'block';
+      // Show game in progress error
+      } else if (!gameAvailable) {
+        loginWindowElementRef.querySelector('#login-game-in-progress-error').style.display = 'block';
       // Continue to username verification
       } else {
         // Check against server if username is valid in room
@@ -331,7 +352,7 @@ function login() {
             utils.setCookie('username', username);
             utils.setCookie('roomKey', roomKey);
             // Go to lobby
-            enterLobby(false);
+            enterLobby();
           }
         });
       }
@@ -359,10 +380,27 @@ function leaveLobby() {
 }
 
 function startGame() {
+  firebaseUtil.writeGameStatusInprogress(roomKey);
+}
 
+function gameStatusUpdate(snapshot) {
+  if (snapshot.exists()) {
+    gameStatus = snapshot.val();
+
+    switch (gameStatus) {
+      case 'inprogress':
+        lobbyWindowElementRef.style.display = 'none';
+        loginWindowCoverElementRef.style.display = 'none';
+        break;
+    }
+  }
 }
 
 function initRoomListeners() {
+  // ----- Set message listener for game status
+  firebaseUtil.setGameStatusDBMessageListener(roomKey, function (snapshot) {
+    gameStatusUpdate(snapshot);
+  });
   // ----- Set message listener for players global
   firebaseUtil.setPlayersGlobalDBMessageListener(roomKey, function (snapshot) {
     playersGlobalUpdate(snapshot);
@@ -373,23 +411,20 @@ function initRoomListeners() {
   });
   // Initialize Map
   initializeMap();
-  // ----- Set message listener for global map
-  // firebaseUtil.setGlobalMapDBMessageListener(roomKey, function (snapshot) {
-  //   globalMapUpdate(snapshot);
-  // });
 }
 
-function enterLobby(leader) {
+function enterLobby() {
   initRoomListeners();
   loginWindowElementRef.style.display = 'none';
   loginWindowElementRef.querySelector('#login-room-key-error').style.display = 'none';
   loginWindowElementRef.querySelector('#login-username-error').style.display = 'none';
   loginWindowElementRef.querySelector('#login-room-full-error').style.display = 'none';
+  loginWindowElementRef.querySelector('#login-game-in-progress-error').style.display = 'none';
 
   lobbyWindowElementRef.style.display = 'block';
   lobbyWindowElementRef.querySelector('#lobby-room-key').innerHTML = roomKey;
 
-  if (leader) {
+  if (isLeader) {
     setupLobbyWindowLeader();
   } else {
     // Add non-leader player to list in db
@@ -408,7 +443,9 @@ function setupLobbyWindowNonLeader() {
   lobbyWindowElementRef.querySelector('#lobby-window-start-button').style.display = 'none';
   lobbyWindowElementRef.querySelector('#lobby-window-cancel-button').style.left = '136px';
 }
+//#endregion
 
+//#region PLAYERS GLOBAL
 function playersGlobalUpdate(snapshot) {
   // Only update if data exists
   if (snapshot && snapshot.exists()) {
@@ -447,6 +484,7 @@ function playersGlobalUpdate(snapshot) {
     });
     // Set self as new leader if none exists and we are top of the list
     if (!leaderExists && setNewLeader) {
+      isLeader = true;
       firebaseUtil.writePlayersGlobalNewLeader(username, roomKey);
       setupLobbyWindowLeader();
     }
@@ -456,7 +494,69 @@ function playersGlobalUpdate(snapshot) {
     lobbyWindowElementRef.querySelector('#lobby-players-count').innerHTML = Object.keys(playersGlobal).length.toString();
   }
 }
+//#endregion
 
+//#region GLOBAL CHAT
+function globalChatUpdate(snapshot) {
+  // Only update if data exists
+  if (snapshot.exists()) {
+    const snapshotVal = snapshot.val();
+    // Update chat log with new entries only
+    if (globalChatFirstLoadFlag) {
+      let snapshotObj = snapshotVal[Object.keys(snapshotVal)[Object.keys(snapshotVal).length - 1]];
+      let messageVal = snapshotObj.message;
+      processNewTextElement(globalChatElementRef.querySelector('.draggable-window-body'), messageVal, snapshotObj.username, snapshotObj.timestamp);
+    // Loading for first time
+    } else {
+      for (const log in snapshotVal) {
+        let snapshotObj = snapshotVal[log];
+        let messageVal = snapshotObj.message;
+        processNewTextElement(globalChatElementRef.querySelector('.draggable-window-body'), messageVal, snapshotObj.username, snapshotObj.timestamp);
+      }
+      // Flip first time loaded flag
+      globalChatFirstLoadFlag = true;
+    }
+  }
+}
+//#endregion
+
+//#region LOGOUT
+function logout() {
+  // Clean up server players
+  firebaseUtil.removePlayersLocal(roomKey, playerLocation.y, playerLocation.x, username);
+  firebaseUtil.writePlayersGlobalLeave(username, roomKey);
+
+  // Clear user vars and cookies
+  globalChatFirstLoadFlag = null;
+  globalMapFirstLoadFlag = null;
+  localChatFirstLoadFlag = null;
+  playerLocalFirstLoadFlag = null;
+  playersLocal = {};
+  gameStatus = null;
+  username = null;
+  roomKey = null;
+  utils.deleteCookie('username');
+  utils.deleteCookie('roomKey');
+
+  // Remove DB listeners
+  firebaseUtil.removeGlobalDBMessageListeners();
+  firebaseUtil.removeLocalDBMessageListeners();
+
+  // Clear and hide windows
+  closeWindow(globalChatElementRef);
+  closeWindow(localChatElementRef);
+  closeWindow(mindChatElementRef);
+  clearChatWindow(globalChatElementRef);
+  clearChatWindow(localChatElementRef);
+  clearChatWindow(mindChatElementRef);
+
+  // Reinstate login window
+  loginWindowCoverElementRef.style.display = 'block';
+  loginWindowElementRef.style.display = 'block';
+}
+//#endregion
+
+//#region WINDOW FUNCTIONS
 function focusWindow(focusedWindow) {
   const input = focusedWindow.querySelector('.draggable-window-input');
   if (input) {
@@ -684,28 +784,6 @@ function iconClicked(event, iconName) {
   }
 }
 
-function globalChatUpdate(snapshot) {
-  // Only update if data exists
-  if (snapshot.exists()) {
-    const snapshotVal = snapshot.val();
-    // Update chat log with new entries only
-    if (globalChatFirstLoadFlag) {
-      let snapshotObj = snapshotVal[Object.keys(snapshotVal)[Object.keys(snapshotVal).length - 1]];
-      let messageVal = snapshotObj.message;
-      processNewTextElement(globalChatElementRef.querySelector('.draggable-window-body'), messageVal, snapshotObj.username, snapshotObj.timestamp);
-    // Loading for first time
-    } else {
-      for (const log in snapshotVal) {
-        let snapshotObj = snapshotVal[log];
-        let messageVal = snapshotObj.message;
-        processNewTextElement(globalChatElementRef.querySelector('.draggable-window-body'), messageVal, snapshotObj.username, snapshotObj.timestamp);
-      }
-      // Flip first time loaded flag
-      globalChatFirstLoadFlag = true;
-    }
-  }
-}
-
 function clearChatWindow(clearWindow) {
   const clearBody = clearWindow.querySelector('.draggable-window-body');
   clearBody.innerHTML = '';
@@ -715,39 +793,9 @@ function updateWindowTitle(titleWindow, newTitle) {
   const titleWindowElement = titleWindow.querySelector('.draggable-window-title');
   titleWindowElement.textContent = newTitle;
 }
+//#endregion
 
-function logout() {
-  // Clean up server players
-  firebaseUtil.removePlayersLocal(roomKey, playerLocation.y, playerLocation.x, username);
-
-  // Clear user vars and cookies
-  globalChatFirstLoadFlag = null;
-  globalMapFirstLoadFlag = null;
-  localChatFirstLoadFlag = null;
-  playerLocalFirstLoadFlag = null;
-  playersLocal = {};
-  username = null;
-  roomKey = null;
-  utils.deleteCookie('username');
-  utils.deleteCookie('roomKey');
-
-  // Remove DB listeners
-  firebaseUtil.removeGlobalDBMessageListeners();
-  firebaseUtil.removeLocalDBMessageListeners();
-
-  // Clear and hide windows
-  closeWindow(globalChatElementRef);
-  closeWindow(localChatElementRef);
-  closeWindow(mindChatElementRef);
-  clearChatWindow(globalChatElementRef);
-  clearChatWindow(localChatElementRef);
-  clearChatWindow(mindChatElementRef);
-
-  // Reinstate login window
-  loginWindowCoverElementRef.style.display = 'block';
-  loginWindowElementRef.style.display = 'block';
-}
-
+//#region PLAYER ACTIONS - MIND
 function processMindCommand(message) {
   const parsedCommand = message.split(' ')[0];
   const args = message.split(' ').length > 1 ? message.split(' ').slice(1) : [];
@@ -787,27 +835,28 @@ function movePlayer(direction) {
   direction = direction.trim().toUpperCase();
   // Valid directions only...
   if ((direction == 'NORTH' || direction == 'UP') && playerLocation.y > 0
-        && mapMaster[playerLocation.y][playerLocation.x].includes('N')) {
+        && mapReference[playerLocation.y][playerLocation.x].mapKey.includes('N')) {
     playerEnterRoom(playerLocation.y - 1, playerLocation.x);
   } else if ((direction == 'EAST' || direction == 'RIGHT') && playerLocation.x < (constants.mapWidth - 1)
-                && mapMaster[playerLocation.y][playerLocation.x].includes('E')) {
+                && mapReference[playerLocation.y][playerLocation.x].mapKey.includes('E')) {
     playerEnterRoom(playerLocation.y, playerLocation.x + 1);
   } else if ((direction == 'SOUTH' || direction == 'DOWN') && playerLocation.y < (constants.mapHeight - 1)
-                && mapMaster[playerLocation.y][playerLocation.x].includes('S')) {
+                && mapReference[playerLocation.y][playerLocation.x].mapKey.includes('S')) {
     playerEnterRoom(playerLocation.y + 1, playerLocation.x);
   } else if ((direction == 'WEST' || direction == 'LEFT') && playerLocation.x > 0
-                && mapMaster[playerLocation.y][playerLocation.x].includes('W')) {
+                && mapReference[playerLocation.y][playerLocation.x].mapKey.includes('W')) {
     playerEnterRoom(playerLocation.y, playerLocation.x - 1);
   }
 }
+//#endregion
 
-//#region LOCALCHAT
-function exitLocalChat () {
+//#region LOCALCHAT - ROOM
+function exitLocalRoomServer () {
   // Remove player from old room local chat list
   firebaseUtil.removePlayersLocal(roomKey, playerLocation.y, playerLocation.x, username);
 }
 
-function enterLocalChat () {
+function enterLocalRoomServer () {
   // First, remove all local listeners from old room (if any)
   firebaseUtil.removeLocalDBMessageListeners();
   // Reset first load flags
@@ -895,6 +944,8 @@ function playerLocalUpdate(snapshot) {
       playersLocal = snapshot.val();
       playerLocalFirstLoadFlag = true;
     }
+
+    buildMapDetailText();
   }
 }
 
@@ -951,137 +1002,61 @@ function initializeMap() {
     const referenceRow = [];
     for (let j = 0; j < constants.mapWidth; j++) {
       row.push('');
-      referenceRow.push('');
+      referenceRow.push({
+        mapKey: '',
+        discovered: false
+      });
     }
     mapMaster.push(row);
     mapReference.push(referenceRow);
   }
-}
 
-function globalMapUpdate(snapshot) {
-  // Only update if data exists
-  if (snapshot.exists()) {
-    // Iterate through all rooms on server
-    const snapshotVal = snapshot.val();
-    const serverRooms = Object.keys(snapshotVal);
-    for (let i = 0; i < serverRooms.length; i++) {
-      // Grab coordinate and split it to y and x values
-      const serverCoord = serverRooms[i];
-      const y = Number(serverCoord.split('_')[0]);
-      const x = Number(serverCoord.split('_')[1]);
-      // If local mapReference does not have value server does at that coordinate, set it in local reference
-      if (mapReference[y][x] != snapshotVal[serverCoord]) {
-        mapReference[y][x] = snapshotVal[serverCoord].mapKey;
+  firebaseUtil.setGlobalMapTileDataDBMessageListener(roomKey, (snapshot) => {
+    if (snapshot.exists()) {
+      // Iterate through all rooms on server
+      const snapshotVal = snapshot.val();
+      const serverRooms = Object.keys(snapshotVal);
+      for (let i = 0; i < serverRooms.length; i++) {
+        // Grab coordinate and split it to y and x values
+        const serverCoord = serverRooms[i];
+        const y = Number(serverCoord.split('_')[0]);
+        const x = Number(serverCoord.split('_')[1]);
+        mapReference[y][x].mapKey = snapshotVal[serverCoord].mapKey;
+        mapReference[y][x].discovered = snapshotVal[serverCoord].discovered;
+      }
+      
+      if (!globalMapFirstLoadFlag) {
+        globalMapFirstLoadFlag = true;
+        // Set player to center of map
+        // TODO change spawn points here later?
+        playerEnterRoom(Math.floor(constants.mapHeight / 2), Math.floor(constants.mapWidth / 2));
       }
     }
-  }
-
-  // Initialize map for first load
-  if (!globalMapFirstLoadFlag) {
-    globalMapFirstLoadFlag = true;
-    // Set player location & starting room key
-    // Setting player statically to bottom left, will change later to randomize position
-    playerEnterRoom(constants.mapHeight - 1, 0);
-  }
+  });
 }
 
 function playerEnterRoom(y, x) {
   // Events on leave room
-  exitLocalChat();
+  exitLocalRoomServer();
 
   playerLocation.y = y;
   playerLocation.x = x;
-  const referenceTile = mapReference[y][x];
+  const referenceTile = mapReference[y][x].mapKey;
+  const discovered = mapReference[y][x].discovered;
 
-  // Tile exists on server...
-  if (referenceTile) {
-    // If we haven't discovered the tile yet, put it in local master
-    if (!mapMaster[y][x]) {
-      mapMaster[y][x] = referenceTile;
-    }
-    
-  // No tile on server, generate new tile
-  } else {
-    // Gather viable tile properties based on the following factors:
-    // 1. Tested adjacent tile is within the bounds of the grid AND
-    // 2. Tested adjacent tile is undiscovered on server OR
-    // 3. Tested adjacent tile is discovered and has adjoining path
-    const searchTerms = [];
-    const notSearchTerms = [];
-    let hasToHaveNorth = false;
-    let hasToHaveEast = false;
-    let hasToHaveSouth = false;
-    let hasToHaveWest = false;
-    if ((y - 1) >= 0 && mapReference[y - 1][x].includes('S')) {
-      hasToHaveNorth = true;
-      searchTerms.push('N');
-    } else if ((y - 1) >= 0 && (!mapReference[y - 1][x])) {
-      searchTerms.push('N');
-    } else {
-      notSearchTerms.push('N');
-    }
+  // If we haven't discovered the tile yet, put it in local master
+  if (!mapMaster[y][x]) {
+    mapMaster[y][x] = referenceTile;
+  }
 
-    if ((x + 1) < constants.mapWidth && mapReference[y][x + 1].includes('W')) {
-      hasToHaveEast = true;
-      searchTerms.push('E');
-    } else if ((x + 1) < constants.mapWidth && (!mapReference[y][x + 1])) {
-      searchTerms.push('E');
-    } else {
-      notSearchTerms.push('E');
-    }
-    
-    if ((y + 1) < constants.mapHeight && mapReference[y + 1][x].includes('N')) {
-      hasToHaveSouth = true;
-      searchTerms.push('S');
-    } else if ((y + 1) < constants.mapHeight && (!mapReference[y + 1][x])) {
-      searchTerms.push('S');
-    } else {
-      notSearchTerms.push('S');
-    }
-
-    if ((x - 1) >= 0 && mapReference[y][x - 1].includes('E')) {
-      hasToHaveWest = true;
-      searchTerms.push('W');
-    } else if ((x - 1) >= 0 && (!mapReference[y][x - 1])) {
-      searchTerms.push('W');
-    } else {
-      notSearchTerms.push('W');
-    }
-    
-    // Use search terms to gather list of tiles to choose from
-    const viableTiles = [];
-    const allTiles = Object.keys(rooms[mapTheme]);
-    for (let i = 0; i < searchTerms.length; i++) {
-      for (let j = 0; j < allTiles.length; j++) {
-        // Add only if it matches search term and it's not already selected
-        if (allTiles[j].includes(searchTerms[i]) && !viableTiles.includes(allTiles[j]) &&
-            ((hasToHaveNorth && allTiles[j].includes('N')) || !hasToHaveNorth) &&
-            ((hasToHaveEast && allTiles[j].includes('E')) || !hasToHaveEast) &&
-            ((hasToHaveSouth && allTiles[j].includes('S')) || !hasToHaveSouth) &&
-            ((hasToHaveWest && allTiles[j].includes('W')) || !hasToHaveWest)) {
-          viableTiles.push(allTiles[j]);
-          // Revoke if from a NOT search term
-          for (let k = 0; k < notSearchTerms.length; k++) {
-            if (allTiles[j].includes(notSearchTerms[k])) {
-              viableTiles.pop();
-              break;
-            }
-          }
-        }
-      }
-    }
-
-    // Randomly pick tile from viable tiles and set it in local master
-    const randomIndex =  Math.floor(Math.random() * (viableTiles.length));
-    const newTile = viableTiles[randomIndex];
-    mapMaster[y][x] = newTile;
-    
-    // Write tile to server
-    firebaseUtil.writeGlobalMapUpdate(roomKey, y, x, newTile);
+  // Tile has not been discovered in server, run discovery triggers (items, totems, etc.)
+  // And update discovery status in server
+  if (!discovered) {
+    firebaseUtil.writeGlobalMapTileDiscovered(roomKey, playerLocation.y, playerLocation.x);
   }
 
   // Events on enter room
-  enterLocalChat();
+  enterLocalRoomServer();
 
   // Redraw map
   buildMapText();
@@ -1123,11 +1098,60 @@ function buildMapText() {
 
 function buildMapDetailText() {
   let mapText = '';
+  let mapLines = [];
+  const startingColumnBufferWidth = 5;
+  const playerColumnWidth = 15;
+  const itemColumnWidth = 15;
   try {
-    mapText = rooms[mapTheme][mapMaster[playerLocation.y][playerLocation.x]];
-    // Add in detail elements from room detail
-    // Player
-    mapText = mapText.slice(0, 95) + '<span class="map-player">' + mapPlayer + '</span>' + mapText.slice(96);
+    let baseMapText = rooms[mapTheme][mapMaster[playerLocation.y][playerLocation.x]];
+    mapLines = baseMapText.split(/\r?\n/);
+
+    // Player header
+    for (let i = 0; i < startingColumnBufferWidth; i++) {
+      mapLines[0] += ' ';
+    }
+    mapLines[0] += '<span class="map-column-header">PLAYERS</span>';
+    for (let i = 0; i < playerColumnWidth - 'PLAYERS'.length; i++) {
+      mapLines[0] += ' ';
+    }
+    // Player list
+    let pIndex = 0;
+    for (const p in playersLocal) {
+      if (username != p) {
+        pIndex++;
+        for (let i = 0; i < startingColumnBufferWidth; i++) {
+          mapLines[pIndex] += ' ';
+        }
+        mapLines[pIndex] += '<span class="map-player">' + p + '</span>';
+        for (let i = 0; i < playerColumnWidth - p.length; i++) {
+          mapLines[pIndex] += ' ';
+        }
+      }
+    }
+
+    // Items header
+    mapLines[0] += '<span class="map-column-header">ITEMS</span>';
+    for (let i = 0; i < itemColumnWidth - 'ITEMS'.length; i++) {
+      mapLines[0] += ' ';
+    }
+
+    // Add in player 'characters'
+    mapLines[4] = mapLines[4].slice(0, 10) + '<span class="map-player">' + mapPlayer + '</span>' + mapLines[4].slice(11);
+    for (let i = 0; i < pIndex; i++) {
+      switch (i) {
+        case 0:
+          mapLines[3] = mapLines[3].slice(0, 15) + '<span class="map-player">' + mapPlayer + '</span>' + mapLines[3].slice(16);
+          break;
+        case 1:
+          mapLines[5] = mapLines[5].slice(0, 13) + '<span class="map-player">' + mapPlayer + '</span>' + mapLines[5].slice(14);
+          break;
+      }
+    }
+
+    // Build full text
+    for (let i = 0; i < mapLines.length; i++) {
+      mapText += mapLines[i];
+    }
 
     mapZoomedInElementRef.querySelector('.map-text').innerHTML = mapText;
   } catch (error) {

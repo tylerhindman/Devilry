@@ -38,7 +38,10 @@ exports.createRoom = onCall((request) => {
         // Set roomKey in DB
         admin.database().ref('roomKeys/' + roomKey).set({
           timestamp: timestamp,
+          gameStatus: 'lobby',
         });
+        // Set room initial game status
+        admin.database().ref(roomKey + '/gameStatus').set('lobby');
 
         // Generate map
         // 1. Initialize empty map
@@ -72,13 +75,20 @@ exports.createRoom = onCall((request) => {
 
         // 6.
         const dbMap = {};
+        const tileData = {};
         for (let i = 0; i < mapHeight; i++) {
           for (let j = 0; j < mapWidth; j++) {
             dbMap[i + '_' + j] = {
               mapKey: map[i][j],
             };
+            tileData[i + '_' + j] = {
+              mapKey: map[i][j],
+              discovered: false,
+            };
           }
         }
+
+        dbMap['tileData'] = tileData;
 
         // Save map to DB
         admin.database().ref(roomKey + '/map').set(dbMap);

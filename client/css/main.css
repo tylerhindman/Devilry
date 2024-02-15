@@ -168,6 +168,10 @@ body {
 
 /********************Map**************************/
 
+.map-zoomed-in-body {
+  white-space: pre;
+}
+
 .map-text {
   color: #208c71;
 }
@@ -176,6 +180,9 @@ body {
   color: yellow;
 }
 
+.map-column-header {
+  color: #208c71;
+}
 
 /****************Login Window*********************/
 .login-window {

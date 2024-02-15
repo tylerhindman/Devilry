@@ -23,14 +23,16 @@ Data Model:
     }
     "roomKeys": {
         "[roomKey]": {
-            "timestamp": "[timestamp]"
+            "timestamp": "[timestamp]",
+            "gameStatus": "[lobby|inprogress|finished]"
         },
         ...
     }
     "[roomKey]": {
+        "gameStatus": "[lobby|inprogress|finished]"
         "players": {
             "[playerName]": {
-                "leader": "[true/false]",
+                "leader": "[true|false]",
                 "timestamp": "[timestamp]"
             }
             ...
@@ -44,6 +46,13 @@ Data Model:
             ...
         },
         "map": {
+            "tileData": {
+                "[y_x]": {
+                    "mapKey": "[mapKey]",
+                    "discovered": "[true|false]"
+                }
+                ...
+            }
             "[y_x]": {
                 "mapKey": "[mapKey]",
                 "metaData": {
@@ -74,6 +83,7 @@ Data Model:
                     ...
                 }
             }
+            ...
         }
     }
 }
