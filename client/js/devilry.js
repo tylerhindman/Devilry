@@ -278,6 +278,7 @@ function login() {
   let roomKeyFieldValue = loginWindowElementRef.querySelector('#login-window-room-input').value;
   loginWindowElementRef.querySelector('#login-room-key-error').style.display = 'none';
   loginWindowElementRef.querySelector('#login-username-error').style.display = 'none';
+  loginWindowElementRef.querySelector('#login-room-full-error').style.display = 'none';
   if (usernameFieldValue && roomKeyFieldValue) {
     roomKeyFieldValue = roomKeyFieldValue.toUpperCase();
     // Check against DB if room key is valid
@@ -302,9 +303,11 @@ function login() {
         // Check against server if username is valid in room
         firebaseUtil.getPlayersGlobalDB(roomKeyFieldValue, (snapshot) => {
           let validUsername = true; // Start with assumption that name is valid
+          let playersCount = 0;
           if (snapshot.exists()) {
             const usernames = snapshot.val();
             for (const u in usernames) {
+              playersCount++;
               // Invalid if found in database list (case insensitive)
               if (usernameFieldValue.toLowerCase() == u.toLowerCase()) {
                 validUsername = false;
@@ -316,6 +319,9 @@ function login() {
           // Show username error
           if (!validUsername) {
             loginWindowElementRef.querySelector('#login-username-error').style.display = 'block';
+          // Show room full error
+          } else if (playersCount == constants.maxPlayers) {
+            loginWindowElementRef.querySelector('#login-room-full-error').style.display = 'block';
           // Continue with login
           } else {
             loginWindowElementRef.style.display = 'none';
@@ -378,6 +384,7 @@ function enterLobby(leader) {
   loginWindowElementRef.style.display = 'none';
   loginWindowElementRef.querySelector('#login-room-key-error').style.display = 'none';
   loginWindowElementRef.querySelector('#login-username-error').style.display = 'none';
+  loginWindowElementRef.querySelector('#login-room-full-error').style.display = 'none';
 
   lobbyWindowElementRef.style.display = 'block';
   lobbyWindowElementRef.querySelector('#lobby-room-key').innerHTML = roomKey;
