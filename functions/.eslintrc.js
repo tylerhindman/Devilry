@@ -18,6 +18,7 @@ module.exports = {
     'max-len': ['error', 120],
     'padded-blocks': 'off',
     'require-jsdoc': 'off',
+    'guard-for-in': 'off',
   },
   overrides: [
     {

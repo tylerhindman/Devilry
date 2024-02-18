@@ -552,6 +552,9 @@ function logout() {
   closeWindow(globalChatElementRef);
   closeWindow(localChatElementRef);
   closeWindow(mindChatElementRef);
+  closeWindow(mapZoomedInElementRef);
+  closeWindow(mapZoomedOutElementRef);
+  closeWindow(mindChatElementRef);
   clearChatWindow(globalChatElementRef);
   clearChatWindow(localChatElementRef);
   clearChatWindow(mindChatElementRef);
