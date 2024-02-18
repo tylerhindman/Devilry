@@ -166,6 +166,18 @@ body {
   color:rgb(197, 5, 5);
 }
 
+.mind-body {
+  white-space: pre;
+}
+
+.mind-text {
+  color: yellow;
+}
+
+.mind-header {
+  color: #208c71;
+}
+
 /********************Map**************************/
 
 .map-zoomed-in-body {
@@ -178,6 +190,10 @@ body {
 
 .map-player {
   color: yellow;
+}
+
+.map-user {
+  color: white;
 }
 
 .map-column-header {

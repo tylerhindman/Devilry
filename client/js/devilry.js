@@ -55,6 +55,8 @@ let playersGlobal = {};
 
 // Data models - local
 let playersLocal = {};
+let playerInventory = ['stick', 'knive', 'c4'];
+let playerSpells = ['bless'];
 let mindCommandHistory = [];
 //#endregion
 
@@ -134,7 +136,7 @@ function devilryStart() {
         newWindowElement.id = 'chat-window-mind';
         newWindowElement.querySelector('.draggable-window-title').textContent = 'MIND';
         mindChatElementRef = newWindowElement;
-        mindChatElementRef.addEventListener('keyup', mindHistoryInput);
+        setupMindWindow();
         break;
       case 3:
         newWindowElement.id = 'map-window-zoomed-out';
@@ -143,9 +145,8 @@ function devilryStart() {
         break;
       case 4:
         newWindowElement.id = 'map-window-zoomed-in';
-        setupMapWindow(newWindowElement, 'MAP +', 525, 230);
+        setupMapWindow(newWindowElement, 'MAP +', 535, 230);
         mapZoomedInElementRef = newWindowElement;
-        mapZoomedInElementRef.querySelector('.draggable-window-body').classList.add('map-zoomed-in-body');
         break;
     }
 
@@ -536,6 +537,8 @@ function logout() {
   localChatFirstLoadFlag = null;
   playerLocalFirstLoadFlag = null;
   playersLocal = {};
+  playerInventory = [];
+  playerSpells = [];
   mindCommandHistory = [];
   mindCommandsHistoryIndex = -1;
   gameStatus = null;
@@ -884,6 +887,93 @@ function movePlayer(direction) {
     playerEnterRoom(playerLocation.y, playerLocation.x - 1);
   }
 }
+
+function setupMindWindow() {
+  mindChatElementRef.addEventListener('keyup', mindHistoryInput);
+  mindChatElementRef.querySelector('.draggable-window-body').classList.add('mind-body');
+  const paragraphElement = document.createElement("p");
+  paragraphElement.className = 'mind-text';
+  mindChatElementRef.querySelector('.draggable-window-body').appendChild(paragraphElement);
+
+  // TODO - remove this later, will be put in pickup check success from server / item drop
+  buildMindText();
+}
+
+function buildMindText() {
+  let mindText = '';
+  const itemColumnWidth = 15;
+  const spellsColumnWidth = 15;
+  const inventoryHeader = 'INVENTORY';
+  const spellHeader = 'SPELLS';
+  // Set up column headers for Inventory and Spells
+  mindText += '<span class="mind-header">';
+  mindText += inventoryHeader;
+  for (let i = 0 ; i < (itemColumnWidth - inventoryHeader.length); i++) {
+    mindText += ' ';
+  }
+  mindText += '|';
+  mindText += spellHeader;
+  for (let i = 0; i < (spellsColumnWidth - spellHeader.length); i++) {
+    mindText += ' ';
+  }
+  mindText += '\r\n'
+  for (let i = 0; i < itemColumnWidth; i++) {
+    mindText += '_';
+  }
+  mindText += '|';
+  for (let i = 0; i < spellsColumnWidth; i++) {
+    mindText += '_';
+  }
+  mindText += '\r\n';
+  for (let i = 0; i < itemColumnWidth; i++) {
+    mindText += ' ';
+  }
+  mindText += '|';
+  for (let i = 0; i < spellsColumnWidth; i++) {
+    mindText += ' ';
+  }
+  mindText += '</span>';
+  
+  // Set up rows
+  const maxRows = Math.max(playerInventory.length, playerSpells.length);
+  //const itemAndSpellRows = new Array(maxRows).fill('');
+  for (let i = 0; i < maxRows; i++) {
+    let itemAndSpellRow = '';
+    // Process inventory first
+    // If we have an item for this row, populate and fill with space
+    if (i < playerInventory.length) {
+      itemAndSpellRow += playerInventory[i];
+      for (let j = 0; j < (itemColumnWidth - playerInventory[i].length); j++) {
+        itemAndSpellRow += ' ';
+      }
+    // If no item, fill with space
+    } else {
+      for (let j = 0; j < itemColumnWidth; j++) {
+        itemAndSpellRow += ' ';
+      }
+    }
+
+    // Add column separator
+    itemAndSpellRow += '<span class="mind-header">|</span>';
+
+    // Process spells next
+    if (i < playerSpells.length) {
+      itemAndSpellRow += playerSpells[i];
+      for (let j = 0; j < (spellsColumnWidth - playerSpells[i].length); j++) {
+        itemAndSpellRow += ' ';
+      }
+    // If no item, fill with space
+    } else {
+      for (let j = 0; j < spellsColumnWidth; j++) {
+        itemAndSpellRow += ' ';
+      }
+    }
+
+    mindText += '\r\n' + itemAndSpellRow;
+  }
+
+  mindChatElementRef.querySelector('.mind-text').innerHTML = mindText;
+}
 //#endregion
 
 //#region LOCALCHAT - ROOM
@@ -1028,6 +1118,10 @@ function setupMapWindow(windowRef, name, width, height) {
   const paragraphElement = document.createElement("p");
   paragraphElement.className = 'map-text';
   windowRef.querySelector('.draggable-window-body').appendChild(paragraphElement);
+
+  if (name == 'MAP +') {
+    windowRef.querySelector('.draggable-window-body').classList.add('map-zoomed-in-body');
+  }
 }
 
 function initializeMap() {
@@ -1135,9 +1229,12 @@ function buildMapText() {
 function buildMapDetailText() {
   let mapText = '';
   let mapLines = [];
+  const roomTextLineWidth = 9;
   const startingColumnBufferWidth = 5;
   const playerColumnWidth = 15;
   const itemColumnWidth = 15;
+  const playersHeader = 'PLAYERS';
+  const itemsHeader = 'ITEMS';
   try {
     let baseMapText = rooms[mapTheme][mapMaster[playerLocation.y][playerLocation.x]];
     mapLines = baseMapText.split(/\r?\n/);
@@ -1146,34 +1243,73 @@ function buildMapDetailText() {
     for (let i = 0; i < startingColumnBufferWidth; i++) {
       mapLines[0] += ' ';
     }
-    mapLines[0] += '<span class="map-column-header">PLAYERS</span>';
-    for (let i = 0; i < playerColumnWidth - 'PLAYERS'.length; i++) {
+    mapLines[0] += `<span class="map-column-header">${playersHeader}</span>`;
+    for (let i = 0; i < playerColumnWidth - playersHeader.length; i++) {
       mapLines[0] += ' ';
-    }
-    // Player list
-    let pIndex = 0;
-    for (const p in playersLocal) {
-      if (username != p) {
-        pIndex++;
-        for (let i = 0; i < startingColumnBufferWidth; i++) {
-          mapLines[pIndex] += ' ';
-        }
-        mapLines[pIndex] += '<span class="map-player">' + p + '</span>';
-        for (let i = 0; i < playerColumnWidth - p.length; i++) {
-          mapLines[pIndex] += ' ';
-        }
-      }
     }
 
+    mapLines[0] += '<span class="map-column-header">|</span>';
+
     // Items header
-    mapLines[0] += '<span class="map-column-header">ITEMS</span>';
-    for (let i = 0; i < itemColumnWidth - 'ITEMS'.length; i++) {
+    mapLines[0] += `<span class="map-column-header">${itemsHeader}</span>`;
+    for (let i = 0; i < itemColumnWidth - itemsHeader.length; i++) {
       mapLines[0] += ' ';
+    }
+
+    // Add table separator
+    for (let i = 0; i < startingColumnBufferWidth; i++) {
+      mapLines[1] += ' ';
+    }
+    mapLines[1] += '<span class="map-column-header">';
+    for (let i = 0; i < playerColumnWidth; i++) {
+      mapLines[1] += '_'
+    }
+    mapLines[1] += '|'
+    for (let i = 0; i < itemColumnWidth; i++) {
+      mapLines[1] += '_';
+    }
+    mapLines[1] += '</span>';
+    for (let i = 0; i < (startingColumnBufferWidth + itemColumnWidth); i++) {
+      mapLines[2] += ' ';
+    }
+    mapLines[2] += '<span class="map-column-header">|</span>';
+
+    const startingRowIndex = 3;
+    const players = Object.keys(playersLocal);
+    const items = [];
+    const maxRows = Math.max(players.length, items.length);
+    for (let i = 0; i < maxRows; i++) {
+      let mapLineIndex = i + startingRowIndex;
+      // Insert new row if we went past 
+      if ((mapLines.length - 1) < mapLineIndex) {
+        mapLines.push('');
+        for (let j = 0; j < roomTextLineWidth; j++) {
+          mapLines[mapLineIndex] += ' ';
+        }
+      }
+      // Player list
+      for (let i = 0; i < startingColumnBufferWidth; i++) {
+        mapLines[mapLineIndex] += ' ';
+      }
+      if (i < players.length) {
+        let p = players[i];
+        mapLines[mapLineIndex] += '<span class="' + (username == p ? 'map-user' : 'map-player') + '">' + p + '</span>';
+        for (let i = 0; i < playerColumnWidth - p.length; i++) {
+          mapLines[mapLineIndex] += ' ';
+        }
+      } else {
+        for (let i = 0; i < playerColumnWidth; i++) {
+          mapLines[mapLineIndex] += ' ';
+        }
+      }
+      mapLines[mapLineIndex] += '<span class="map-column-header">|</span>';
+
+      // TODO add items list for current room
     }
 
     // Add in player 'characters'
     mapLines[4] = mapLines[4].slice(0, 10) + '<span class="map-player">' + mapPlayer + '</span>' + mapLines[4].slice(11);
-    for (let i = 0; i < pIndex; i++) {
+    for (let i = 0; i < players.length; i++) {
       switch (i) {
         case 0:
           mapLines[3] = mapLines[3].slice(0, 15) + '<span class="map-player">' + mapPlayer + '</span>' + mapLines[3].slice(16);
@@ -1191,7 +1327,7 @@ function buildMapDetailText() {
 
     mapZoomedInElementRef.querySelector('.map-text').innerHTML = mapText;
   } catch (error) {
-    console.log('invalid room');
+    console.log(error);
   }
 }
 //#endregion
