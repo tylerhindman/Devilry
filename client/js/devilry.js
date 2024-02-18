@@ -1308,15 +1308,51 @@ function buildMapDetailText() {
     }
 
     // Add in player 'characters'
-    mapLines[4] = mapLines[4].slice(0, 10) + '<span class="map-player">' + mapPlayer + '</span>' + mapLines[4].slice(11);
+    // X: 9-18, Y: 2-5
+    const playerPositions = [];
     for (let i = 0; i < players.length; i++) {
-      switch (i) {
-        case 0:
-          mapLines[3] = mapLines[3].slice(0, 15) + '<span class="map-player">' + mapPlayer + '</span>' + mapLines[3].slice(16);
-          break;
-        case 1:
-          mapLines[5] = mapLines[5].slice(0, 13) + '<span class="map-player">' + mapPlayer + '</span>' + mapLines[5].slice(14);
-          break;
+      let newPlayerPosition = {x: 0, y: 0};
+      let uniquePosition = true;
+      do {
+        uniquePosition = true;
+        // Calculate new random position
+        newPlayerPosition.x = Math.floor(Math.random() * 10) + 10;
+        newPlayerPosition.y = Math.floor(Math.random() * 4) + 2;
+        // Check against previously decided positions to make sure new position is unique
+        for (let j = 0; j < i; j++) {
+          if (playerPositions[j].x == newPlayerPosition.x && playerPositions[j].y == newPlayerPosition.y) {
+            uniquePosition = false;
+            break;
+          }
+        }
+      } while (!uniquePosition)
+      playerPositions.push(newPlayerPosition);
+    }
+
+    // Reformat positions to room lines
+    let playerPositionsFormatted = [];
+    for (let i = 0; i < 4; i++) {
+      playerPositionsFormatted.push(new Array());
+    }
+    for (let i = 0; i < players.length; i++) {
+      playerPositionsFormatted[playerPositions[i].y - 2].push(playerPositions[i]);
+    }
+    for (let i = 0; i < playerPositionsFormatted.length; i++) {
+      playerPositionsFormatted[i].sort((a, b) => a.x - b.x);
+    }
+
+    // Write player characters to text
+    let firstPlayer = true;
+    for (let i = 0; i < playerPositionsFormatted.length; i++) {
+      let spanAddition = 0;
+      for (let j = 0; j < playerPositionsFormatted[i].length; j++) {
+        let pos = playerPositionsFormatted[i][j];
+        let lineIndex = pos.y;
+        let sliceIndex = pos.x + spanAddition;
+        let spanText = '<span class="' + (firstPlayer ? 'map-user' : 'map-player') + '">' + mapPlayer + '</span>';
+        mapLines[lineIndex] = mapLines[lineIndex].slice(0, sliceIndex) + spanText + mapLines[lineIndex].slice(sliceIndex + 1);
+        spanAddition += spanText.length;
+        firstPlayer = false;
       }
     }
 
