@@ -22,12 +22,14 @@ const spellRandomChatTimeMin = 5;
 const spellRandomChatTimeMax = 25;
 const spellRandomCharMin = 8;
 const spellRandomCharMax = 16;
+const mindCommandsHistoryMax = 20;
 //#endregion
 
 //#region USER VARS
 let username = null;
 let roomKey = null;
 let isLeader = false;
+let mindCommandsHistoryIndex = -1;
 //#endregion
 
 //#region MAP VARS
@@ -53,6 +55,7 @@ let playersGlobal = {};
 
 // Data models - local
 let playersLocal = {};
+let mindCommandHistory = [];
 //#endregion
 
 //#region WINDOW REFERENCES
@@ -131,6 +134,7 @@ function devilryStart() {
         newWindowElement.id = 'chat-window-mind';
         newWindowElement.querySelector('.draggable-window-title').textContent = 'MIND';
         mindChatElementRef = newWindowElement;
+        mindChatElementRef.addEventListener('keyup', mindHistoryInput);
         break;
       case 3:
         newWindowElement.id = 'map-window-zoomed-out';
@@ -532,6 +536,8 @@ function logout() {
   localChatFirstLoadFlag = null;
   playerLocalFirstLoadFlag = null;
   playersLocal = {};
+  mindCommandHistory = [];
+  mindCommandsHistoryIndex = -1;
   gameStatus = null;
   username = null;
   roomKey = null;
@@ -796,7 +802,34 @@ function updateWindowTitle(titleWindow, newTitle) {
 //#endregion
 
 //#region PLAYER ACTIONS - MIND
+function mindHistoryInput(event) {
+  if (event.key === 'ArrowUp') {
+    event.preventDefault();
+    if (mindCommandsHistoryIndex < mindCommandHistory.length - 1) {
+      mindCommandsHistoryIndex++;
+      mindChatElementRef.querySelector('.draggable-window-input').value = mindCommandHistory[mindCommandsHistoryIndex];
+    }
+  } else if (event.key === 'ArrowDown') {
+    event.preventDefault();
+    if (mindCommandsHistoryIndex >= 0) {
+      mindCommandsHistoryIndex--;
+      if (mindCommandsHistoryIndex == -1) {
+        mindChatElementRef.querySelector('.draggable-window-input').value = '';
+      } else {
+        mindChatElementRef.querySelector('.draggable-window-input').value = mindCommandHistory[mindCommandsHistoryIndex];
+      }
+    }
+  }
+}
+
 function processMindCommand(message) {
+  // Manage mind history
+  mindCommandsHistoryIndex = -1;
+  if (mindCommandHistory.unshift(message) > mindCommandsHistoryMax) {
+    mindCommandHistory.pop();
+  }
+
+  // Parse command and route it
   const parsedCommand = message.split(' ')[0];
   const args = message.split(' ').length > 1 ? message.split(' ').slice(1) : [];
   switch (parsedCommand) {
