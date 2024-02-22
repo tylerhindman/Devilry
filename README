@@ -55,24 +55,22 @@ Data Model:
             }
             "[y_x]": {
                 "mapKey": "[mapKey]",
-                "metaData": {
-                    "players": {
-                        "[playerName]": {
-                            "username": "[playerName]",
-                            "timestamp": "[timestamp]"
-                        }
-                        ...
-                    },
-                    "items": {
-                        "[itemName]": "[count]"
-                        ...
-                    },
-                    "attribrutes": {
-                        "[attribruteName]": {
-                            "status": "[status]"
-                        }
-                        ...
+                "players": {
+                    "[playerName]": {
+                        "username": "[playerName]",
+                        "timestamp": "[timestamp]"
                     }
+                    ...
+                },
+                "items": {
+                    "[itemName]": "[itemName]"
+                    ...
+                },
+                "features": {
+                    "[featureName]": {
+                        "status": "[status]"
+                    }
+                    ...
                 },
                 "localChat": {
                     "[timstamp_playerName]": {
@@ -89,36 +87,48 @@ Data Model:
 }
 
 
-RoomType Reference:
+Constants Reference:
 
 {
-    "NESW": "NESW",
-
-    "N_SW": "N_SW",
-    
-    "NE_W": "NE_W",
-    
-    "NES_": "NES_",
-    
-    "NE__": "NE__",
-
-    "N___": "N___",
-    
-    "N__W": "N__W",
-    
-    "N_S_": "N_S_",
-    
-    "_ES_": "_ES_",
-    
-    "_ESW": "_ESW",
-    
-    "_E__": "_E__",
-    
-    "_E_W": "_E_W",
-    
-    "___W": "___W",
-    
-    "__S_": "__S_",
-    
-    "__SW": "__SW"
+    "mapHeight": 7,
+    "mapWidth": 13,
+    "maxPlayers": 10,
+    "roomTypes": {
+        "NESW": "NESW",
+        "N_SW": "N_SW",
+        "NE_W": "NE_W",
+        "NES_": "NES_",
+        "NE__": "NE__",
+        "N___": "N___",
+        "N__W": "N__W",
+        "N_S_": "N_S_",
+        "_ES_": "_ES_",
+        "_ESW": "_ESW",
+        "_E__": "_E__",
+        "_E_W": "_E_W",
+        "___W": "___W",
+        "__S_": "__S_",
+        "__SW": "__SW"
+    },
+    "items": {
+        "knife": {
+            "class": "melee",
+            "damage": 1,
+            "rarity": 65,
+            "rollCount": 2
+        },
+        "c4": {
+            "class": "trap",
+            "damage": 8,
+            "rarity": 15
+        },
+        "spellbook_bless": {
+            "class": "spellbook",
+            "spell": "bless",
+            "rarity": 8
+        }
+    },
+    "features": {
+        
+    }
 }

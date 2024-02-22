@@ -60,7 +60,11 @@ exports.createRoom = onCall((request) => {
         for (let i = 0; i < mapHeight; i++) {
           const row = [];
           for (let j = 0; j < mapWidth; j++) {
-            row.push('');
+            row.push({
+              mapKey: '',
+              items: [],
+              features: [],
+            });
           }
           map.push(row);
         }
@@ -68,10 +72,10 @@ exports.createRoom = onCall((request) => {
         // 2.
         const startY = Math.floor(mapHeight / 2);
         const startX = Math.floor(mapWidth / 2);
-        map[startY][startX] = 'NESW';
+        map[startY][startX].mapKey = 'NESW';
 
         // 3.
-        traversePath(map, startY, startX, mapHeight, mapWidth, constants.roomTypes, 0);
+        traversePath(map, startY, startX, mapHeight, mapWidth, constants.roomTypes, constants.items, 0);
 
         // 6.
         const dbMap = {};
@@ -79,10 +83,23 @@ exports.createRoom = onCall((request) => {
         for (let i = 0; i < mapHeight; i++) {
           for (let j = 0; j < mapWidth; j++) {
             dbMap[i + '_' + j] = {
-              mapKey: map[i][j],
+              mapKey: map[i][j].mapKey,
+              items: {},
+              features: {},
             };
+            for (let k = 0; k < map[i][j].items.length; k++) {
+              const item = map[i][j].items[k];
+              dbMap[i + '_' + j].items[item] = item;
+            }
+            for (let k = 0; k < map[i][j].features.length; k++) {
+              const feature = map[i][j].features[k].feature;
+              const status = map[i][j].features[k].status;
+              dbMap[i + '_' + j].features[feature] = {
+                status: status,
+              };
+            }
             tileData[i + '_' + j] = {
-              mapKey: map[i][j],
+              mapKey: map[i][j].mapKey,
               discovered: false,
             };
           }
@@ -110,8 +127,8 @@ exports.createRoom = onCall((request) => {
   return roomPromise;
 });
 
-function traversePath(map, y, x, mapHeight, mapWidth, roomTypes, iteration) {
-  const currentTile = map[y][x];
+function traversePath(map, y, x, mapHeight, mapWidth, roomTypes, items, iteration) {
+  const currentTile = map[y][x].mapKey;
   iteration++;
 
   // Get available paths
@@ -148,7 +165,7 @@ function traversePath(map, y, x, mapHeight, mapWidth, roomTypes, iteration) {
     }
 
     // 4. Try and create tile if it doesn't already exist and is inside the map
-    if (nextY >= 0 && nextY < mapHeight && nextX >= 0 && nextX < mapWidth && map[nextY][nextX] == '') {
+    if (nextY >= 0 && nextY < mapHeight && nextX >= 0 && nextX < mapWidth && map[nextY][nextX].mapKey == '') {
       const availableTiles = getAvailableTiles(map, nextY, nextX, mapHeight, mapWidth, roomTypes);
       const oneDoorRooms = [];
       const twoDoorRooms = [];
@@ -211,10 +228,16 @@ function traversePath(map, y, x, mapHeight, mapWidth, roomTypes, iteration) {
         }
 
         // Assign tile in map
-        map[nextY][nextX] = selectedTile;
+        map[nextY][nextX].mapKey = selectedTile;
+
+        // Room feature generation
+        featureGeneration(map, nextY, nextX, mapHeight, mapWidth, iteration);
+
+        // Item generation
+        itemGeneration(map, nextY, nextX, mapHeight, mapWidth, items, iteration);
 
         // Recurse down the next tile's path
-        traversePath(map, nextY, nextX, mapHeight, mapWidth, roomTypes, iteration);
+        traversePath(map, nextY, nextX, mapHeight, mapWidth, roomTypes, items, iteration);
       }
     }
   }
@@ -234,37 +257,37 @@ function getAvailableTiles(map, y, x, mapHeight, mapWidth, roomTypes) {
   let hasToHaveEast = false;
   let hasToHaveSouth = false;
   let hasToHaveWest = false;
-  if ((y - 1) >= 0 && map[y - 1][x].includes('S')) {
+  if ((y - 1) >= 0 && map[y - 1][x].mapKey.includes('S')) {
     hasToHaveNorth = true;
     searchTerms.push('N');
-  } else if ((y - 1) >= 0 && (!map[y - 1][x])) {
+  } else if ((y - 1) >= 0 && (!map[y - 1][x].mapKey)) {
     searchTerms.push('N');
   } else {
     notSearchTerms.push('N');
   }
 
-  if ((x + 1) < mapWidth && map[y][x + 1].includes('W')) {
+  if ((x + 1) < mapWidth && map[y][x + 1].mapKey.includes('W')) {
     hasToHaveEast = true;
     searchTerms.push('E');
-  } else if ((x + 1) < mapWidth && (!map[y][x + 1])) {
+  } else if ((x + 1) < mapWidth && (!map[y][x + 1].mapKey)) {
     searchTerms.push('E');
   } else {
     notSearchTerms.push('E');
   }
 
-  if ((y + 1) < mapHeight && map[y + 1][x].includes('N')) {
+  if ((y + 1) < mapHeight && map[y + 1][x].mapKey.includes('N')) {
     hasToHaveSouth = true;
     searchTerms.push('S');
-  } else if ((y + 1) < mapHeight && (!map[y + 1][x])) {
+  } else if ((y + 1) < mapHeight && (!map[y + 1][x].mapKey)) {
     searchTerms.push('S');
   } else {
     notSearchTerms.push('S');
   }
 
-  if ((x - 1) >= 0 && map[y][x - 1].includes('E')) {
+  if ((x - 1) >= 0 && map[y][x - 1].mapKey.includes('E')) {
     hasToHaveWest = true;
     searchTerms.push('W');
-  } else if ((x - 1) >= 0 && (!map[y][x - 1])) {
+  } else if ((x - 1) >= 0 && (!map[y][x - 1].mapKey)) {
     searchTerms.push('W');
   } else {
     notSearchTerms.push('W');
@@ -294,4 +317,25 @@ function getAvailableTiles(map, y, x, mapHeight, mapWidth, roomTypes) {
   }
 
   return viableTiles;
+}
+
+function featureGeneration(map, y, x, mapHeight, mapWidth, iteration) {
+
+}
+
+function itemGeneration(map, y, x, mapHeight, mapWidth, items, iteration) {
+  // For each type of item, roll for spawn based on rarity chance.
+  // Multiple rolls based on tryCount
+  for (const item in items) {
+    const rarity = items[item].rarity;
+    const rollCount = ('rollCount' in items[item]) ? items[item].rollCount : 1;
+    for (let i = 0; i < rollCount; i++) {
+      // Roll 0-100
+      const roll = Math.floor(Math.random() * 101);
+      // If rarity is greater than the roll, spawn the item in that tile
+      if (rarity >= roll) {
+        map[y][x].items.push(item);
+      }
+    }
+  }
 }

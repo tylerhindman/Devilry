@@ -174,6 +174,16 @@ export function setPlayersLocalDBMessageListener (roomName, y, x, listenerFuncti
 }
 //#endregion
 
+//#region ITEMS_LOCAL
+export function setItemsLocalDBMessageListener (roomName, y, x, listenerFunction) {
+  const messageRef = query(ref(db, roomName + '/map/' + y + '_' + x + '/items'));
+  localListenerList.push(messageRef);
+  onValue(messageRef, (snapshot) => {
+    listenerFunction(snapshot);
+  });
+}
+//#endregion
+
 //#region CLEANUP
 export function removeGlobalDBMessageListeners () {
   globalListenerList.forEach((el) => {

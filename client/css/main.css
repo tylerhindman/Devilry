@@ -200,6 +200,10 @@ body {
   color: #208c71;
 }
 
+.map-item {
+  color: yellow;
+}
+
 /****************Login Window*********************/
 .login-window {
   position: absolute;

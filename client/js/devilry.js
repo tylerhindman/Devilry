@@ -55,6 +55,8 @@ let playersGlobal = {};
 
 // Data models - local
 let playersLocal = {};
+let itemsLocal = {};
+
 let playerInventory = ['stick', 'knive', 'c4'];
 let playerSpells = ['bless'];
 let mindCommandHistory = [];
@@ -537,6 +539,7 @@ function logout() {
   localChatFirstLoadFlag = null;
   playerLocalFirstLoadFlag = null;
   playersLocal = {};
+  itemsLocal = {};
   playerInventory = [];
   playerSpells = [];
   mindCommandHistory = [];
@@ -976,7 +979,7 @@ function buildMindText() {
 }
 //#endregion
 
-//#region LOCALCHAT - ROOM
+//#region LOCAL - ROOM
 function exitLocalRoomServer () {
   // Remove player from old room local chat list
   firebaseUtil.removePlayersLocal(roomKey, playerLocation.y, playerLocation.x, username);
@@ -1002,6 +1005,9 @@ function enterLocalRoomServer () {
   });
   firebaseUtil.setPlayersLocalDBMessageListener(roomKey, playerLocation.y, playerLocation.x, function (snapshot) {
     playerLocalUpdate(snapshot);
+  });
+  firebaseUtil.setItemsLocalDBMessageListener(roomKey, playerLocation.y, playerLocation.x, function (snapshot) {
+    itemsLocalUpdate(snapshot);
   });
 }
 
@@ -1073,6 +1079,15 @@ function playerLocalUpdate(snapshot) {
 
     buildMapDetailText();
   }
+}
+
+function itemsLocalUpdate(snapshot) {
+  itemsLocal = {};
+  if (snapshot.exists()) {
+    const snapshotVal = snapshot.val();
+    itemsLocal = snapshotVal;
+  }
+  buildMapDetailText();
 }
 
 function addLocalPlayerEnteredExitedLog(msgUsername, enteredOrExited) {
@@ -1276,7 +1291,7 @@ function buildMapDetailText() {
 
     const startingRowIndex = 3;
     const players = Object.keys(playersLocal);
-    const items = [];
+    const items = Object.keys(itemsLocal);
     const maxRows = Math.max(players.length, items.length);
     for (let i = 0; i < maxRows; i++) {
       let mapLineIndex = i + startingRowIndex;
@@ -1288,23 +1303,30 @@ function buildMapDetailText() {
         }
       }
       // Player list
-      for (let i = 0; i < startingColumnBufferWidth; i++) {
+      for (let j = 0; j < startingColumnBufferWidth; j++) {
         mapLines[mapLineIndex] += ' ';
       }
       if (i < players.length) {
         let p = players[i];
         mapLines[mapLineIndex] += '<span class="' + (username == p ? 'map-user' : 'map-player') + '">' + p + '</span>';
-        for (let i = 0; i < playerColumnWidth - p.length; i++) {
+        for (let j = 0; j < playerColumnWidth - p.length; j++) {
           mapLines[mapLineIndex] += ' ';
         }
       } else {
-        for (let i = 0; i < playerColumnWidth; i++) {
+        for (let j = 0; j < playerColumnWidth; j++) {
           mapLines[mapLineIndex] += ' ';
         }
       }
       mapLines[mapLineIndex] += '<span class="map-column-header">|</span>';
 
-      // TODO add items list for current room
+      // Item list
+      if (i < items.length) {
+        let item = items[i];
+        mapLines[mapLineIndex] += '<span class="map-item">' + item + '</span>';
+        for (let j = 0; j < itemColumnWidth - item.length; j++) {
+          mapLines[mapLineIndex] += ' ';
+        }
+      }
     }
 
     // Add in player 'characters'
