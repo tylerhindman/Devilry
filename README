@@ -114,18 +114,18 @@ Constants Reference:
         "knife": {
             "class": "melee",
             "damage": 1,
-            "rarity": 65,
+            "rarity": 35,
             "rollCount": 2
         },
         "c4": {
             "class": "trap",
             "damage": 8,
-            "rarity": 15
+            "rarity": 16
         },
         "spellbook_bless": {
             "class": "spellbook",
             "spell": "bless",
-            "rarity": 8
+            "rarity": 10
         }
     },
     "features": {
