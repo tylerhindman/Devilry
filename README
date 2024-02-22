@@ -63,7 +63,9 @@ Data Model:
                     ...
                 },
                 "items": {
-                    "[itemName]": "[itemName]"
+                    "[itemName]": {
+                        "count": "[count]"
+                    }
                     ...
                 },
                 "features": {

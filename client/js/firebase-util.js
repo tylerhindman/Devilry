@@ -175,6 +175,16 @@ export function setPlayersLocalDBMessageListener (roomName, y, x, listenerFuncti
 //#endregion
 
 //#region ITEMS_LOCAL
+export function updateItemsLocal (roomName, y, x, item, count) {
+  if (count > 0) {
+    set(ref(db, roomName + '/map/' + y + '_' + x + '/items/' + item), {
+      count: count
+    });
+  } else {
+    remove(ref(db, roomName + '/map/' + y + '_' + x + '/items/' + item));
+  }
+}
+
 export function setItemsLocalDBMessageListener (roomName, y, x, listenerFunction) {
   const messageRef = query(ref(db, roomName + '/map/' + y + '_' + x + '/items'));
   localListenerList.push(messageRef);

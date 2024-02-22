@@ -89,7 +89,9 @@ exports.createRoom = onCall((request) => {
             };
             for (let k = 0; k < map[i][j].items.length; k++) {
               const item = map[i][j].items[k];
-              dbMap[i + '_' + j].items[item] = item;
+              dbMap[i + '_' + j].items[item.item] = {
+                count: item.count,
+              };
             }
             for (let k = 0; k < map[i][j].features.length; k++) {
               const feature = map[i][j].features[k].feature;
@@ -329,13 +331,20 @@ function itemGeneration(map, y, x, mapHeight, mapWidth, items, iteration) {
   for (const item in items) {
     const rarity = items[item].rarity;
     const rollCount = ('rollCount' in items[item]) ? items[item].rollCount : 1;
+    let spawnCount = 0;
     for (let i = 0; i < rollCount; i++) {
       // Roll 0-100
       const roll = Math.floor(Math.random() * 101);
       // If rarity is greater than the roll, spawn the item in that tile
       if (rarity >= roll) {
-        map[y][x].items.push(item);
+        spawnCount++;
       }
+    }
+    if (spawnCount > 0) {
+      map[y][x].items.push({
+        item: item,
+        count: spawnCount,
+      });
     }
   }
 }

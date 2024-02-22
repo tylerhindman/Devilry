@@ -57,8 +57,8 @@ let playersGlobal = {};
 let playersLocal = {};
 let itemsLocal = {};
 
-let playerInventory = ['stick', 'knive', 'c4'];
-let playerSpells = ['bless'];
+let playerInventory = [];
+let playerSpells = [];
 let mindCommandHistory = [];
 //#endregion
 
@@ -852,6 +852,18 @@ function processMindCommand(message) {
         movePlayer(args[0]);
       }
       break;
+    case 'pickup':
+    case 'get':
+      if (args.length > 0) {
+        pickupItem(args[0]);
+      }
+      break;
+    case 'drop':
+    case 'leave':
+      if (args.length > 0) {
+        dropItem(args[0]);
+      }
+      break;
     default:
       break;
   }
@@ -859,17 +871,19 @@ function processMindCommand(message) {
 
 function castSpell(spellArgs) {
   const spell = spellArgs[0].trim();
-  switch (spell) {
-    case 'bless':
-      // Write spell trigger to specific chat
-      firebaseUtil.writeGlobalChatMessage(username, 'spell:bless', roomKey);
-      // Spell logic
-      break;
-    case 'room':
-      // Write spell trigger to specific chat
-      firebaseUtil.writeGlobalChatMessage(username, 'spell:room', roomKey);
-      // Spell logic
-      break;
+  if (playerSpells.includes(spell)) {
+    switch (spell) {
+      case 'bless':
+        // Write spell trigger to specific chat
+        firebaseUtil.writeGlobalChatMessage(username, 'spell:bless', roomKey);
+        // Spell logic
+        break;
+      case 'room':
+        // Write spell trigger to specific chat
+        firebaseUtil.writeGlobalChatMessage(username, 'spell:room', roomKey);
+        // Spell logic
+        break;
+    }
   }
 }
 
@@ -891,6 +905,37 @@ function movePlayer(direction) {
   }
 }
 
+function pickupItem(item) {
+  const serverItem = itemsLocal[item];
+  if (serverItem) {
+    if (constants.items[item].class == 'spellbook') {
+      if (!playerSpells.includes(constants.items[item].spell)) {
+        const count = serverItem.count - 1;
+        playerSpells.push(constants.items[item].spell);
+        firebaseUtil.updateItemsLocal(roomKey, playerLocation.y, playerLocation.x, item, count);
+      }
+    } else {
+      const count = serverItem.count - 1;
+      playerInventory.push(item);
+      firebaseUtil.updateItemsLocal(roomKey, playerLocation.y, playerLocation.x, item, count);
+    }
+    buildMindText();
+  }
+}
+
+function dropItem(item) {
+  if (playerInventory.includes(item)) {
+    const serverItem = itemsLocal[item];
+    let count = 1;
+    if (serverItem) {
+      count += serverItem.count;
+    }
+    playerInventory.splice(playerInventory.findIndex((i) => i == item), 1);
+    firebaseUtil.updateItemsLocal(roomKey, playerLocation.y, playerLocation.x, item, count);
+    buildMindText();
+  }
+}
+
 function setupMindWindow() {
   mindChatElementRef.addEventListener('keyup', mindHistoryInput);
   mindChatElementRef.querySelector('.draggable-window-body').classList.add('mind-body');
@@ -898,7 +943,6 @@ function setupMindWindow() {
   paragraphElement.className = 'mind-text';
   mindChatElementRef.querySelector('.draggable-window-body').appendChild(paragraphElement);
 
-  // TODO - remove this later, will be put in pickup check success from server / item drop
   buildMindText();
 }
 
@@ -1291,7 +1335,12 @@ function buildMapDetailText() {
 
     const startingRowIndex = 3;
     const players = Object.keys(playersLocal);
-    const items = Object.keys(itemsLocal);
+    const items = [];
+    for (const item in itemsLocal) {
+      for (let i = 0; i < itemsLocal[item].count; i++) {
+        items.push(item);
+      }
+    }
     const maxRows = Math.max(players.length, items.length);
     for (let i = 0; i < maxRows; i++) {
       let mapLineIndex = i + startingRowIndex;
