@@ -46,6 +46,7 @@ const mapTheme = 'castle';
 
 //#region GAME PROPS
 let gameStatus = null;
+let gamemode = null;
 let constants = null;
 //#endregion
 
@@ -306,12 +307,14 @@ function login() {
     firebaseUtil.getRoomKeysDB((snapshot) => {
       let validRoomKey = false; // Start with assumption that room is invalid
       let gameAvailable = false;
+      let roomKeyProps = null;
       if (snapshot.exists()) {
         const roomKeys = snapshot.val();
         for (const k in roomKeys) {
           // valid if found in database list
           if (roomKeyFieldValue == k) {
             validRoomKey = true;
+            roomKeyProps = roomKeys[k];
             if (roomKeys[k].gameStatus == 'lobby') {
               gameAvailable = true;
             }
@@ -356,6 +359,7 @@ function login() {
             //loginWindowCoverElementRef.style.display = 'none';
             username = usernameFieldValue;
             roomKey = roomKeyFieldValue;
+            gamemode = roomKeyProps.gamemode;
             utils.setCookie('username', username);
             utils.setCookie('roomKey', roomKey);
             // Go to lobby
