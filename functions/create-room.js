@@ -4,7 +4,8 @@ const admin = require('firebase-admin');
 
 exports.createRoom = onCall((request) => {
   const username = request.data.username;
-  logger.info('Create room called by username: ' + username, {structuredData: true});
+  const gamemode = 'oddball'; // Change this to pull from request later if we add more gamemodes
+  logger.info('Create room with gamemode ' + gamemode + ' called by username: ' + username, {structuredData: true});
 
   const roomPromise = new Promise((resolve, reject) => {
     // Get constants
@@ -39,9 +40,13 @@ exports.createRoom = onCall((request) => {
         admin.database().ref('roomKeys/' + roomKey).set({
           timestamp: timestamp,
           gameStatus: 'lobby',
+          gamemode: gamemode,
         });
-        // Set room initial game status
-        admin.database().ref(roomKey + '/gameStatus').set('lobby');
+        // Set room initial game status & mode
+        admin.database().ref(roomKey).set({
+          gameStatus: 'lobby',
+          gamemode: gamemode,
+        });
 
         // Generate map
         // 1. Initialize empty map
@@ -108,6 +113,9 @@ exports.createRoom = onCall((request) => {
         }
 
         dbMap['tileData'] = tileData;
+
+        // Gamemode setups
+        gamemodeSetup(dbMap, mapHeight, mapWidth, constants.gamemodes, gamemode);
 
         // Save map to DB
         admin.database().ref(roomKey + '/map').set(dbMap);
@@ -329,22 +337,53 @@ function itemGeneration(map, y, x, mapHeight, mapWidth, items, iteration) {
   // For each type of item, roll for spawn based on rarity chance.
   // Multiple rolls based on tryCount
   for (const item in items) {
-    const rarity = items[item].rarity;
-    const rollCount = ('rollCount' in items[item]) ? items[item].rollCount : 1;
-    let spawnCount = 0;
-    for (let i = 0; i < rollCount; i++) {
-      // Roll 0-100
-      const roll = Math.floor(Math.random() * 101);
-      // If rarity is greater than the roll, spawn the item in that tile
-      if (rarity >= roll) {
-        spawnCount++;
+    if (!items[item]['noSpawn']) {
+      const rarity = items[item].rarity;
+      const rollCount = ('rollCount' in items[item]) ? items[item].rollCount : 1;
+      let spawnCount = 0;
+      for (let i = 0; i < rollCount; i++) {
+        // Roll 0-100
+        const roll = Math.floor(Math.random() * 101);
+        // If rarity is greater than the roll, spawn the item in that tile
+        if (rarity >= roll) {
+          spawnCount++;
+        }
+      }
+      if (spawnCount > 0) {
+        map[y][x].items.push({
+          item: item,
+          count: spawnCount,
+        });
       }
     }
-    if (spawnCount > 0) {
-      map[y][x].items.push({
-        item: item,
-        count: spawnCount,
-      });
-    }
+  }
+}
+
+function gamemodeSetup(dbMap, mapHeight, mapWidth, gamemodeConstants, gamemode) {
+  switch (gamemode) {
+    case 'oddball':
+      const oddballConstants = gamemodeConstants.oddball;
+      let oddballSpawned = false;
+      while (!oddballSpawned) {
+        const oddballSpawnY = Math.floor(Math.random() * mapHeight);
+        const oddballSpawnX = Math.floor(Math.random() * mapWidth);
+        const startingSpaceY = Math.floor(mapHeight / 2);
+        const startingSpaceX = Math.floor(mapWidth / 2);
+        const oddballDistanceY = Math.abs(startingSpaceY - oddballSpawnY);
+        const oddballDistanceX = Math.abs(startingSpaceX - oddballSpawnX);
+
+        // If tile is valid and greater than or equal to the minimum starting spawn distance,
+        // Then spawn the oddball and mark tile as having oddball
+        if (dbMap['tileData'][oddballSpawnY + '_' + oddballSpawnX].mapKey &&
+            (oddballDistanceY + oddballDistanceX) >= oddballConstants.minimumStartingSpawnDistance
+        ) {
+          dbMap[oddballSpawnY + '_' + oddballSpawnX]['items']['oddball'] = {
+            count: 1,
+          };
+          dbMap['tileData'][oddballSpawnY + '_' + oddballSpawnX]['hasOddball'] = true;
+          oddballSpawned = true;
+        }
+      }
+      break;
   }
 }

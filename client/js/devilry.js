@@ -1212,6 +1212,12 @@ function initializeMap() {
         const x = Number(serverCoord.split('_')[1]);
         mapReference[y][x].mapKey = snapshotVal[serverCoord].mapKey;
         mapReference[y][x].discovered = snapshotVal[serverCoord].discovered;
+        mapReference[y][x].hasOddball = false;
+
+        // Mark map as having oddball
+        if (snapshotVal[serverCoord]?.hasOddball) {
+          mapReference[y][x].hasOddball = true;
+        }
       }
       
       if (!globalMapFirstLoadFlag) {
@@ -1272,6 +1278,9 @@ function buildMapText() {
       // Override with player location
       if (playerLocation.y == i && playerLocation.x == j) {
         tile = '<span class="map-player">' + mapPlayer + '</span>';
+      // Override with oddball markings
+      } else if (mapReference[i][j].hasOddball) {
+        tile = '<span class="map-room-has-oddball">' + tile + '</span>';
       }
       mapText += tile;
       if (j < (constants.mapWidth - 1)) {

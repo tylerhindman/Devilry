@@ -19,6 +19,7 @@ module.exports = {
     'padded-blocks': 'off',
     'require-jsdoc': 'off',
     'guard-for-in': 'off',
+    'no-case-declarations': 'off',
   },
   overrides: [
     {

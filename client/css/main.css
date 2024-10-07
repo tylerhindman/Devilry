@@ -188,6 +188,10 @@ body {
   color: #208c71;
 }
 
+.map-room-has-oddball {
+  color: rgb(197, 5, 5);
+}
+
 .map-player {
   color: yellow;
 }
