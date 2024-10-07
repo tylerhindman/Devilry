@@ -246,6 +246,7 @@ function devilryStart() {
   // Grab username and roomKey
   username = utils.getCookie('username');
   roomKey = utils.getCookie('roomKey');
+  gamemode = utils.getCookie('gamemode');
   // If we are already in a session, hide the login screen
   if (username && roomKey) {
     loginWindowElementRef.style.display = 'none';
@@ -362,6 +363,7 @@ function login() {
             gamemode = roomKeyProps.gamemode;
             utils.setCookie('username', username);
             utils.setCookie('roomKey', roomKey);
+            utils.setCookie('gamemode', gamemode);
             // Go to lobby
             enterLobby();
           }
