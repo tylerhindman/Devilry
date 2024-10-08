@@ -129,6 +129,22 @@ export function writeGlobalMapTileDiscovered (roomName, y, x) {
   const db = getDatabase();
   set(ref(db, roomName + '/map/tileData/' + y + '_' + x + '/discovered'), true);
 }
+
+export function writeUpdateGlobalMapTileHasOddball (roomName, prevY, prevX, y, x) {
+  const db = getDatabase();
+  set(ref(db, roomName + '/map/tileData/' + prevY + '_' + prevX + '/hasOddball'), false);
+  set(ref(db, roomName + '/map/tileData/' + y + '_' + x + '/hasOddball'), true);
+}
+
+export function writeGlobalMapTileOddballTarget (roomName, y, x) {
+  const db = getDatabase();
+  set(ref(db, roomName + '/map/tileData/' + y + '_' + x + '/oddballTarget'), true);
+}
+
+export function removeGlobalMapTileOddballTarget (roomName, y, x) {
+  const db = getDatabase();
+  set(ref(db, roomName + '/map/tileData/' + y + '_' + x + '/oddballTarget'), false);
+}
 //#endregion
 
 //#region LOCALCHAT

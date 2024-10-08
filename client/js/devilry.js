@@ -50,6 +50,10 @@ let gamemode = null;
 let constants = null;
 //#endregion
 
+//#region GAMEMODE PROPS
+let oddballTargetExists = false;
+//#endregion
+
 //#region DATA MODELS
 // Data models - global
 let playersGlobal = {};
@@ -931,9 +935,49 @@ function pickupItem(item) {
       const count = serverItem.count - 1;
       playerInventory.push(item);
       firebaseUtil.updateItemsLocal(roomKey, playerLocation.y, playerLocation.x, item, count);
+      if (constants.items[item].class == 'special') {
+        switch (item) {
+          case 'oddball':
+            // Triggers on oddball pickup
+            oddballPickupTrigger();
+            break;
+        }
+      }
     }
     buildMindText();
   }
+}
+
+function oddballPickupTrigger() {
+  // Only create new target if it doesn't already exist
+  if (!oddballTargetExists) {
+    // Generate new target tile, update tile data in server
+    const minimumTargetTileDistance = constants.gamemodes.oddball.minimumTargetTileDistance;
+    let oddballSpawned = false;
+    while (!oddballSpawned) {
+      const oddballTargetY = Math.floor(Math.random() * constants.mapHeight);
+      const oddballTargetX = Math.floor(Math.random() * constants.mapWidth);
+      const pickupSpaceY = playerLocation.y;
+      const pickupSpaceX = playerLocation.x;
+      const oddballDistanceY = Math.abs(pickupSpaceY - oddballTargetY);
+      const oddballDistanceX = Math.abs(pickupSpaceX - oddballTargetX);
+
+      // If tile is valid and greater than or equal to the minimum starting spawn distance,
+      // Then spawn the oddball and mark tile as having oddball
+      if (mapReference[oddballTargetY][oddballTargetX].mapKey &&
+          (oddballDistanceY + oddballDistanceX) >= minimumTargetTileDistance
+      ) {
+        oddballSpawned = true;
+        console.log('Oddball new target: ' + oddballTargetY + ', ' + oddballTargetX);
+        firebaseUtil.writeGlobalMapTileOddballTarget(roomKey, oddballTargetY, oddballTargetX);
+      }
+    }
+    oddballTargetExists = true;
+  }
+}
+
+function hasOddball() {
+  return playerInventory.find((item) => item == 'oddball');
 }
 
 function dropItem(item) {
@@ -1043,7 +1087,7 @@ function exitLocalRoomServer () {
   firebaseUtil.removePlayersLocal(roomKey, playerLocation.y, playerLocation.x, username);
 }
 
-function enterLocalRoomServer () {
+function enterLocalRoomServer (prevY, prevX) {
   // First, remove all local listeners from old room (if any)
   firebaseUtil.removeLocalDBMessageListeners();
   // Reset first load flags
@@ -1067,6 +1111,10 @@ function enterLocalRoomServer () {
   firebaseUtil.setItemsLocalDBMessageListener(roomKey, playerLocation.y, playerLocation.x, function (snapshot) {
     itemsLocalUpdate(snapshot);
   });
+  // Update server map with oddball location
+  if (hasOddball()) {
+    firebaseUtil.writeUpdateGlobalMapTileHasOddball(roomKey, prevY, prevX, playerLocation.y, playerLocation.x);
+  }
 }
 
 function localChatUpdate (snapshot) {
@@ -1219,6 +1267,8 @@ function initializeMap() {
       // Iterate through all rooms on server
       const snapshotVal = snapshot.val();
       const serverRooms = Object.keys(snapshotVal);
+      oddballTargetExists = false;
+      let refreshMap = false;
       for (let i = 0; i < serverRooms.length; i++) {
         // Grab coordinate and split it to y and x values
         const serverCoord = serverRooms[i];
@@ -1227,11 +1277,23 @@ function initializeMap() {
         mapReference[y][x].mapKey = snapshotVal[serverCoord].mapKey;
         mapReference[y][x].discovered = snapshotVal[serverCoord].discovered;
         mapReference[y][x].hasOddball = false;
+        mapReference[y][x].oddballTarget = false;
 
         // Mark map as having oddball
         if (snapshotVal[serverCoord]?.hasOddball) {
           mapReference[y][x].hasOddball = true;
+          refreshMap = true;
         }
+        // Mark map as being oddball target
+        if (snapshotVal[serverCoord]?.oddballTarget) {
+          mapReference[y][x].oddballTarget = true;
+          oddballTargetExists = true;
+          refreshMap = true;
+        }
+      }
+
+      if (refreshMap) {
+        buildMapText();
       }
       
       if (!globalMapFirstLoadFlag) {
@@ -1248,6 +1310,8 @@ function playerEnterRoom(y, x) {
   // Events on leave room
   exitLocalRoomServer();
 
+  const prevY = playerLocation.y;
+  const prevX = playerLocation.x;
   playerLocation.y = y;
   playerLocation.x = x;
   const referenceTile = mapReference[y][x].mapKey;
@@ -1265,7 +1329,7 @@ function playerEnterRoom(y, x) {
   }
 
   // Events on enter room
-  enterLocalRoomServer();
+  enterLocalRoomServer(prevY, prevX);
 
   // Redraw map
   buildMapText();
@@ -1292,7 +1356,10 @@ function buildMapText() {
       // Override with player location
       if (playerLocation.y == i && playerLocation.x == j) {
         tile = '<span class="map-player">' + mapPlayer + '</span>';
-      // Override with oddball markings
+      // Override with oddball target marking
+      } else if (mapReference[i][j].oddballTarget) {
+        tile = '<span class="map-room-oddball-target">' + tile + '</span>';
+      // Override with has oddball marking
       } else if (mapReference[i][j].hasOddball) {
         tile = '<span class="map-room-has-oddball">' + tile + '</span>';
       }

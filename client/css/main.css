@@ -192,6 +192,10 @@ body {
   color: rgb(197, 5, 5);
 }
 
+.map-room-oddball-target {
+  color: rgb(32, 129, 255);
+}
+
 .item-oddball {
   color: rgb(197, 5, 5);
 }
