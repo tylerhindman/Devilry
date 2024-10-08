@@ -57,6 +57,7 @@ let oddballTargetExists = false;
 //#region DATA MODELS
 // Data models - global
 let playersGlobal = {};
+let playersGlobalInventories = {};
 
 // Data models - local
 let playersLocal = {};
@@ -475,42 +476,52 @@ function playersGlobalUpdate(snapshot) {
     // Update local cache with server player list
     playersGlobal = playersServer;
 
-    // Update lobby player list
-    const lobbyPlayersListElementRef = lobbyWindowElementRef.querySelector('#lobby-players-list');
-    lobbyPlayersListElementRef.innerHTML = '';
-    let lobbyWindowHeight = lobbyWindowBaseHeight;
-    let leaderExists = false;
-    let firstRun = true;
-    let setNewLeader = false;
-    snapshot.forEach((childSnapshot) => {
-      const playerName = childSnapshot.key;
-      
-      // Check if there exists no leader, if not, set top player as new leader (if we are top player)
-      if (playersGlobal[playerName].leader) {
-        leaderExists = true;
-      } else if (firstRun && username == playerName && !playersGlobal[playerName].leader) {
-        setNewLeader = true;
+    // Update lobby player list if in lobby
+    if (gameStatus == 'lobby') {
+      const lobbyPlayersListElementRef = lobbyWindowElementRef.querySelector('#lobby-players-list');
+      lobbyPlayersListElementRef.innerHTML = '';
+      let lobbyWindowHeight = lobbyWindowBaseHeight;
+      let leaderExists = false;
+      let firstRun = true;
+      let setNewLeader = false;
+      snapshot.forEach((childSnapshot) => {
+        const playerName = childSnapshot.key;
+        
+        // Check if there exists no leader, if not, set top player as new leader (if we are top player)
+        if (playersGlobal[playerName].leader) {
+          leaderExists = true;
+        } else if (firstRun && username == playerName && !playersGlobal[playerName].leader) {
+          setNewLeader = true;
+        }
+
+        const p = document.createElement("p");
+        p.className = 'lobby-player-name ' + (playerName == username ? 'lobby-player-name-user' : 'lobby-player-name-other');
+        p.innerHTML = playerName;
+
+        lobbyPlayersListElementRef.appendChild(p);
+        lobbyWindowHeight += lobbyWindowPlayerAddHeight;
+
+        firstRun = false;
+      });
+      // Set self as new leader if none exists and we are top of the list
+      if (!leaderExists && setNewLeader) {
+        isLeader = true;
+        firebaseUtil.writePlayersGlobalNewLeader(username, roomKey);
+        setupLobbyWindowLeader();
       }
 
-      const p = document.createElement("p");
-      p.className = 'lobby-player-name ' + (playerName == username ? 'lobby-player-name-user' : 'lobby-player-name-other');
-      p.innerHTML = playerName;
-
-      lobbyPlayersListElementRef.appendChild(p);
-      lobbyWindowHeight += lobbyWindowPlayerAddHeight;
-
-      firstRun = false;
-    });
-    // Set self as new leader if none exists and we are top of the list
-    if (!leaderExists && setNewLeader) {
-      isLeader = true;
-      firebaseUtil.writePlayersGlobalNewLeader(username, roomKey);
-      setupLobbyWindowLeader();
+      lobbyWindowElementRef.style.height = lobbyWindowHeight + 'px';
+      // Update player count
+      lobbyWindowElementRef.querySelector('#lobby-players-count').innerHTML = Object.keys(playersGlobal).length.toString();
+    // Update player cache if match is in progress
+    } else if (gameStatus == 'inprogress') {
+      for (let globalPlayerNameServer in playersGlobal) {
+        playersGlobalInventories[globalPlayerNameServer] = [];
+        for (let globalPlayerItemServer in playersGlobal[globalPlayerNameServer].inventory) {
+          playersGlobalInventories[globalPlayerNameServer].push(globalPlayerItemServer);
+        }
+      }
     }
-
-    lobbyWindowElementRef.style.height = lobbyWindowHeight + 'px';
-    // Update player count
-    lobbyWindowElementRef.querySelector('#lobby-players-count').innerHTML = Object.keys(playersGlobal).length.toString();
   }
 }
 //#endregion
@@ -944,6 +955,9 @@ function pickupItem(item) {
         }
       }
     }
+
+    updatePlayerInventoryServer();
+    // Rebuild Mind Screen
     buildMindText();
   }
 }
@@ -989,8 +1003,24 @@ function dropItem(item) {
     }
     playerInventory.splice(playerInventory.findIndex((i) => i == item), 1);
     firebaseUtil.updateItemsLocal(roomKey, playerLocation.y, playerLocation.x, item, count);
+    updatePlayerInventoryServer();
     buildMindText();
   }
+}
+
+function updatePlayerInventoryServer() {
+  // Build DB format of player inventory and save it to players global
+  const playerInventoryDB = {};
+  for (let item of playerInventory) {
+    if (playerInventoryDB[item]) {
+      playerInventoryDB[item].count++;
+    } else {
+      playerInventoryDB[item] = {
+        count: 1
+      };
+    }
+  }
+  firebaseUtil.writePlayersGlobalInventory(username, roomKey, playerInventoryDB);
 }
 
 function setupMindWindow() {
@@ -1379,6 +1409,7 @@ function buildMapDetailText() {
   let mapText = '';
   let mapLines = [];
   const roomTextLineWidth = 9;
+  const roomTextLineWidthPastRoom = 18;
   const startingColumnBufferWidth = 5;
   const playerColumnWidth = 15;
   const itemColumnWidth = 15;
@@ -1436,8 +1467,8 @@ function buildMapDetailText() {
       let mapLineIndex = i + startingRowIndex;
       // Insert new row if we went past 
       if ((mapLines.length - 1) < mapLineIndex) {
-        mapLines.push('');
-        for (let j = 0; j < roomTextLineWidth; j++) {
+        mapLines.push('<br>');
+        for (let j = 0; j < roomTextLineWidthPastRoom; j++) {
           mapLines[mapLineIndex] += ' ';
         }
       }

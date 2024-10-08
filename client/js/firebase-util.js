@@ -81,6 +81,11 @@ export function writePlayersGlobalLeave (name, roomName) {
   remove(ref(db, roomName + '/players/' + name));
 }
 
+export function writePlayersGlobalInventory(name, roomName, inventory) {
+  const db = getDatabase();
+  set(ref(db, roomName + '/players/' + name + '/inventory'), inventory);
+}
+
 export function getPlayersGlobalDB (roomName, listenerFunction) {
   get(child(ref(db), roomName + '/players')).then((snapshot) => {
     listenerFunction(snapshot);
