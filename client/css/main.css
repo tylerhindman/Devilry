@@ -192,6 +192,10 @@ body {
   color: rgb(197, 5, 5);
 }
 
+.item-oddball {
+  color: rgb(197, 5, 5);
+}
+
 .map-player {
   color: yellow;
 }

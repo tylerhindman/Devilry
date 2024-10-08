@@ -374,22 +374,23 @@ function login() {
 }
 
 function leaveLobby() {
-  firebaseUtil.writePlayersGlobalLeave(username, roomKey);
+  // firebaseUtil.writePlayersGlobalLeave(username, roomKey);
 
-  loginWindowElementRef.querySelector('#login-window-room-input').value = roomKey;
+  // username = null;
+  // roomKey = null;
+  // utils.deleteCookie('username');
+  // utils.deleteCookie('roomKey');
 
-  username = null;
-  roomKey = null;
-  utils.deleteCookie('username');
-  utils.deleteCookie('roomKey');
+  // // Remove DB listeners
+  // firebaseUtil.removeGlobalDBMessageListeners();
 
-  // Remove DB listeners
-  firebaseUtil.removeGlobalDBMessageListeners();
+  logout();
 
   // Reinstate login window
+  loginWindowElementRef.querySelector('#login-window-room-input').value = roomKey;
   lobbyWindowElementRef.style.display = 'none';
-  loginWindowCoverElementRef.style.display = 'block';
-  loginWindowElementRef.style.display = 'block';
+  // loginWindowCoverElementRef.style.display = 'block';
+  // loginWindowElementRef.style.display = 'block';
 }
 
 function startGame() {
@@ -404,6 +405,7 @@ function gameStatusUpdate(snapshot) {
       case 'inprogress':
         lobbyWindowElementRef.style.display = 'none';
         loginWindowCoverElementRef.style.display = 'none';
+        buildMindText();
         break;
     }
   }
@@ -555,6 +557,7 @@ function logout() {
   roomKey = null;
   utils.deleteCookie('username');
   utils.deleteCookie('roomKey');
+  utils.deleteCookie('gamemode');
 
   // Remove DB listeners
   firebaseUtil.removeGlobalDBMessageListeners();
@@ -569,7 +572,7 @@ function logout() {
   closeWindow(mindChatElementRef);
   clearChatWindow(globalChatElementRef);
   clearChatWindow(localChatElementRef);
-  clearChatWindow(mindChatElementRef);
+  clearMindWindow();
 
   // Reinstate login window
   loginWindowCoverElementRef.style.display = 'block';
@@ -810,6 +813,10 @@ function clearChatWindow(clearWindow) {
   clearBody.innerHTML = '';
 }
 
+function clearMindWindow() {
+  mindChatElementRef.querySelector('.mind-text').innerHTML = '';
+}
+
 function updateWindowTitle(titleWindow, newTitle) {
   const titleWindowElement = titleWindow.querySelector('.draggable-window-title');
   titleWindowElement.textContent = newTitle;
@@ -995,8 +1002,9 @@ function buildMindText() {
     // Process inventory first
     // If we have an item for this row, populate and fill with space
     if (i < playerInventory.length) {
-      itemAndSpellRow += playerInventory[i];
-      for (let j = 0; j < (itemColumnWidth - playerInventory[i].length); j++) {
+      const item = playerInventory[i]
+      itemAndSpellRow += item == 'oddball' ? '<span class="item-oddball">' + item + '</span>' : item;
+      for (let j = 0; j < (itemColumnWidth - item.length); j++) {
         itemAndSpellRow += ' ';
       }
     // If no item, fill with space
@@ -1386,7 +1394,7 @@ function buildMapDetailText() {
       // Item list
       if (i < items.length) {
         let item = items[i];
-        mapLines[mapLineIndex] += '<span class="map-item">' + item + '</span>';
+        mapLines[mapLineIndex] += (item == 'oddball' ? '<span class="item-oddball">' : '<span class="map-item">') + item + '</span>';
         for (let j = 0; j < itemColumnWidth - item.length; j++) {
           mapLines[mapLineIndex] += ' ';
         }
