@@ -292,6 +292,9 @@ function createRoom() {
       loginWindowElementRef.style.display = 'none';
       roomKey = result.roomKey;
       utils.setCookie('roomKey', roomKey);
+      // TODO - change this to retrieve from input/server later
+      gamemode = 'oddball'
+      utils.setCookie('gamemode', gamemode);
 
       isLeader = true;
       // Go to lobby
@@ -410,6 +413,13 @@ function gameStatusUpdate(snapshot) {
       case 'inprogress':
         lobbyWindowElementRef.style.display = 'none';
         loginWindowCoverElementRef.style.display = 'none';
+
+        // Set up player default spells for Oddball gamemode
+        if (gamemode == 'oddball') {
+          playerSpells.push('intercept');
+          playerSpells.push('score');
+        }
+
         buildMindText();
         break;
     }
@@ -520,6 +530,11 @@ function playersGlobalUpdate(snapshot) {
         for (let globalPlayerItemServer in playersGlobal[globalPlayerNameServer].inventory) {
           playersGlobalInventories[globalPlayerNameServer].push(globalPlayerItemServer);
         }
+        // Refresh current player's inventory
+        if (globalPlayerNameServer == username) {
+          playerInventory = playersGlobalInventories[globalPlayerNameServer];
+          buildMindText();
+        }
       }
     }
   }
@@ -561,12 +576,15 @@ function logout() {
   globalMapFirstLoadFlag = null;
   localChatFirstLoadFlag = null;
   playerLocalFirstLoadFlag = null;
+  playersGlobal = {};
+  playersGlobalInventories = {};
   playersLocal = {};
   itemsLocal = {};
   playerInventory = [];
   playerSpells = [];
   mindCommandHistory = [];
   mindCommandsHistoryIndex = -1;
+  isLeader = false;
   gameStatus = null;
   username = null;
   roomKey = null;
@@ -643,7 +661,12 @@ function processNewTextElement(windowBody, value, msgUsername, timestamp) {
       + new String(currentDate.getHours() >= 12 ? 'PM' : 'AM');
     const metaNode = document.createTextNode('[' + msgUsername + ' ' + currentTime + '] ');
     metaSpan.appendChild(metaNode);
-    metaSpan.className = (msgUsername == username) ? 'log-entry-meta-self' : 'log-entry-meta';
+    metaSpan.className = 'log-entry-meta';
+    if (msgUsername == 'SERVER') {
+      metaSpan.className = 'log-entry-meta-server';
+    } else if (msgUsername == 'username') {
+      metaSpan.className = 'log-entry-meta-self';
+    }
 
     const textNode = document.createTextNode(value);
     textSpan.appendChild(textNode);
@@ -911,6 +934,47 @@ function castSpell(spellArgs) {
         firebaseUtil.writeGlobalChatMessage(username, 'spell:room', roomKey);
         // Spell logic
         break;
+      case 'intercept':
+        // valid usage
+        if (spellArgs.length == 2) {
+          const playerTarget = spellArgs[1];
+          // valid target player (not current player, valid player in game, target player is in room)
+          if (playerTarget != username && playersGlobal[playerTarget] && playersLocal[playerTarget]) {
+            // valid target player has oddball
+            if (playersGlobalInventories[playerTarget].includes('oddball')) {
+              const interceptRoll = Math.floor(Math.random() * 101);
+              const interceptSuccess = constants.gamemodes.oddball.interceptMaxChance;
+              // intercept successful
+              if (interceptRoll < interceptSuccess) {
+                // Remove oddball from target player's inventory
+                const targetPlayerInventory = playersGlobalInventories[playerTarget];
+                targetPlayerInventory.splice(targetPlayerInventory.findIndex((item) => item === 'oddball'), 1);
+                // Update target player's inventory on server
+                updatePlayerInventoryServer(playerTarget, targetPlayerInventory);
+                // Add oddball to current player's inventory
+                playerInventory.push('oddball');
+                // Update current player's inventory on server
+                updatePlayerInventoryServer(username, playerInventory);
+
+                firebaseUtil.writeGlobalChatMessage('SERVER', 'THE ODDBALL HAS CHANGED HANDS', roomKey);
+                firebaseUtil.writeLocalChatMessage(roomKey, playerLocation.y, playerLocation.x, 'SERVER', username + ' HAS INTERCEPTED THE ODDBALL FROM ' + playerTarget);
+              // intercept unsuccessful attempt
+              } else {
+                firebaseUtil.writeLocalChatMessage(roomKey, playerLocation.y, playerLocation.x, 'SERVER', username + ' FAILED TO INTERCEPT THE ODDBALL FROM ' + playerTarget + '...');
+              }
+            // valid target player does not have oddball
+            } else {
+              // TODO Update Mind status
+            }
+          // invalid target player
+          } else {
+            // TODO Update Mind status
+          }
+        // invalid usage
+        } else {
+          // TODO Update Mind status
+        }
+        break;
     }
   }
 }
@@ -956,7 +1020,7 @@ function pickupItem(item) {
       }
     }
 
-    updatePlayerInventoryServer();
+    updatePlayerInventoryServer(username, playerInventory);
     // Rebuild Mind Screen
     buildMindText();
   }
@@ -984,6 +1048,7 @@ function oddballPickupTrigger() {
         oddballSpawned = true;
         console.log('Oddball new target: ' + oddballTargetY + ', ' + oddballTargetX);
         firebaseUtil.writeGlobalMapTileOddballTarget(roomKey, oddballTargetY, oddballTargetX);
+        firebaseUtil.writeGlobalChatMessage('SERVER', 'THE ODDBALL HAS BEEN OBTAINED', roomKey);
       }
     }
     oddballTargetExists = true;
@@ -1003,15 +1068,15 @@ function dropItem(item) {
     }
     playerInventory.splice(playerInventory.findIndex((i) => i == item), 1);
     firebaseUtil.updateItemsLocal(roomKey, playerLocation.y, playerLocation.x, item, count);
-    updatePlayerInventoryServer();
+    updatePlayerInventoryServer(username, playerInventory);
     buildMindText();
   }
 }
 
-function updatePlayerInventoryServer() {
+function updatePlayerInventoryServer(playerName, inventory) {
   // Build DB format of player inventory and save it to players global
   const playerInventoryDB = {};
-  for (let item of playerInventory) {
+  for (let item of inventory) {
     if (playerInventoryDB[item]) {
       playerInventoryDB[item].count++;
     } else {
@@ -1020,7 +1085,7 @@ function updatePlayerInventoryServer() {
       };
     }
   }
-  firebaseUtil.writePlayersGlobalInventory(username, roomKey, playerInventoryDB);
+  firebaseUtil.writePlayersGlobalInventory(playerName, roomKey, playerInventoryDB);
 }
 
 function setupMindWindow() {

@@ -150,6 +150,10 @@ body {
   color: #208c71;
 }
 
+.log-entry-meta-server {
+  color: rgb(197, 5, 5);
+}
+
 .log-entry-text {
   color: #ffffff;
 }
