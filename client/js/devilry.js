@@ -23,6 +23,11 @@ const spellRandomChatTimeMax = 25;
 const spellRandomCharMin = 8;
 const spellRandomCharMax = 16;
 const mindCommandsHistoryMax = 20;
+
+const defaultBackgroundColor = '#008080';
+const oddballScoreBackgroundColor = '#ff0000';
+const oddballScoreBackgroundLerpTimeSeconds = 1.2;
+const oddballScoreBackgroundLerpFrameTimeMilliseconds = 17;
 //#endregion
 
 //#region USER VARS
@@ -52,6 +57,7 @@ let constants = null;
 
 //#region GAMEMODE PROPS
 let oddballTargetExists = false;
+let oddballScoreGlobalMessageTrigger = 'A PLAYER HAS SCORED';
 //#endregion
 
 //#region DATA MODELS
@@ -356,6 +362,13 @@ function login() {
             }
           }
 
+          // Check against illegal player names
+          for (let illegalName in constants.illegalPlayerNames) {
+            if (constants.illegalPlayerNames[illegalName] && usernameFieldValue.toLowerCase() == illegalName.toLowerCase()) {
+              validUsername = false;
+            }
+          }
+
           // Show username error
           if (!validUsername) {
             loginWindowElementRef.querySelector('#login-username-error').style.display = 'block';
@@ -550,6 +563,12 @@ function globalChatUpdate(snapshot) {
     if (globalChatFirstLoadFlag) {
       let snapshotObj = snapshotVal[Object.keys(snapshotVal)[Object.keys(snapshotVal).length - 1]];
       let messageVal = snapshotObj.message;
+
+      // Triggers on global server messages
+      if (snapshotObj.username.toLowerCase() == 'SERVER'.toLowerCase()) {
+        processGlobalChatServerTriggers(messageVal);
+      }
+
       processNewTextElement(globalChatElementRef.querySelector('.draggable-window-body'), messageVal, snapshotObj.username, snapshotObj.timestamp);
     // Loading for first time
     } else {
@@ -561,6 +580,18 @@ function globalChatUpdate(snapshot) {
       // Flip first time loaded flag
       globalChatFirstLoadFlag = true;
     }
+  }
+}
+
+function processGlobalChatServerTriggers(message) {
+  switch (message) {
+    // Trigger on oddball score
+    case oddballScoreGlobalMessageTrigger:
+      // Flash background to oddball score color
+      document.body.style.backgroundColor = oddballScoreBackgroundColor;
+      // Interpolate from oddball score color to default
+      utils.lerpBackground(oddballScoreBackgroundColor, defaultBackgroundColor, oddballScoreBackgroundLerpTimeSeconds, oddballScoreBackgroundLerpFrameTimeMilliseconds);
+      break;
   }
 }
 //#endregion
@@ -971,6 +1002,56 @@ function castSpell(spellArgs) {
             // TODO Update Mind status
           }
         // invalid usage
+        } else {
+          // TODO Update Mind status
+        }
+        break;
+      case 'score':
+        // Score valid if player has oddball and is in the oddball target room
+        if (playerInventory.includes('oddball') && mapReference[playerLocation.y][playerLocation.x].oddballTarget) {
+          const scoreRoll = Math.floor(Math.random() * 101);
+          const scoreSuccess = constants.gamemodes.oddball.scoreMaxChance;
+          // Score successful
+          if (scoreRoll < scoreSuccess) {
+            // Remove oddball from player inventory
+            playerInventory.splice(playerInventory.findIndex((item) => item === 'oddball'), 1);
+            // Update player's inventory on server
+            updatePlayerInventoryServer(username, playerInventory);
+            // Remove oddball target room from server
+            firebaseUtil.removeGlobalMapTileOddballTarget(roomKey, playerLocation.y, playerLocation.x);
+
+            // Send global and local messages
+            firebaseUtil.writeGlobalChatMessage('SERVER', oddballScoreGlobalMessageTrigger, roomKey);
+            firebaseUtil.writeLocalChatMessage(roomKey, playerLocation.y, playerLocation.x, 'SERVER', username + ' HAS SCORED');
+
+            // Spawn new oddball
+            // TODO only run if player score is less than winning score
+            const minimumOddballSpawnDistance = constants.gamemodes.oddball.minimumStartingSpawnDistance;
+            let oddballSpawned = false;
+            while (!oddballSpawned) {
+              const oddballSpawnY = Math.floor(Math.random() * constants.mapHeight);
+              const oddballSpawnX = Math.floor(Math.random() * constants.mapWidth);
+              const startingSpaceY = playerLocation.y;
+              const startingSpaceX = playerLocation.x;
+              const oddballDistanceY = Math.abs(startingSpaceY - oddballSpawnY);
+              const oddballDistanceX = Math.abs(startingSpaceX - oddballSpawnX);
+
+              // If tile is valid and greater than or equal to the minimum starting spawn distance,
+              // Then spawn the oddball and mark tile as having oddball
+              if (mapReference[oddballSpawnY][oddballSpawnX].mapKey &&
+                  (oddballDistanceY + oddballDistanceX) >= minimumOddballSpawnDistance
+              ) {
+                oddballSpawned = true;
+                console.log('Oddball new spawn: ' + oddballSpawnY + ', ' + oddballSpawnX);
+                firebaseUtil.updateItemsLocal(roomKey, oddballSpawnY, oddballSpawnX, 'oddball', 1);
+                firebaseUtil.writeUpdateGlobalMapTileHasOddball(roomKey, playerLocation.y, playerLocation.x, oddballSpawnY, oddballSpawnX);
+              }
+            }
+          // Score unsuccessful
+          } else {
+            // TODO Update Mind status
+          }
+        // Invalid usage
         } else {
           // TODO Update Mind status
         }
