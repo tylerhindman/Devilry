@@ -28,6 +28,10 @@ export function getCookie(cname) {
     return null;
 }
 
+export function isVowel(char) {
+    return "aeiouAEIOU".indexOf(char) != -1;
+}
+
 export function lerpBackground(color1, color2, interpolateLengthSeconds, interpolateFrameTimeMilliseconds) {
     let interpolateTimer = 0;
     const interpolateFunc = (() => {

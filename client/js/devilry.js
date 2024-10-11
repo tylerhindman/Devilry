@@ -35,6 +35,8 @@ let username = null;
 let roomKey = null;
 let isLeader = false;
 let mindCommandsHistoryIndex = -1;
+let mindStatusText = '';
+let playerOddballScore = 0;
 //#endregion
 
 //#region MAP VARS
@@ -541,7 +543,9 @@ function playersGlobalUpdate(snapshot) {
       for (let globalPlayerNameServer in playersGlobal) {
         playersGlobalInventories[globalPlayerNameServer] = [];
         for (let globalPlayerItemServer in playersGlobal[globalPlayerNameServer].inventory) {
-          playersGlobalInventories[globalPlayerNameServer].push(globalPlayerItemServer);
+          for (let i = 0; i < playersGlobal[globalPlayerNameServer].inventory[globalPlayerItemServer].count; i++) {
+            playersGlobalInventories[globalPlayerNameServer].push(globalPlayerItemServer);
+          }
         }
         // Refresh current player's inventory
         if (globalPlayerNameServer == username) {
@@ -615,6 +619,8 @@ function logout() {
   playerSpells = [];
   mindCommandHistory = [];
   mindCommandsHistoryIndex = -1;
+  mindStatusText = '';
+  playerOddballScore = 0;
   isLeader = false;
   gameStatus = null;
   username = null;
@@ -946,9 +952,16 @@ function processMindCommand(message) {
         dropItem(args[0]);
       }
       break;
+    case 'help':
+      mindStatusText = getHelpText(args.length > 0 ? args[0] : '');
+      break;
     default:
+      if (parsedCommand) {
+        mindStatusText = 'Unkown command \'' + parsedCommand + '\'';
+      }
       break;
   }
+  buildMindText();
 }
 
 function castSpell(spellArgs) {
@@ -958,11 +971,13 @@ function castSpell(spellArgs) {
       case 'bless':
         // Write spell trigger to specific chat
         firebaseUtil.writeGlobalChatMessage(username, 'spell:bless', roomKey);
+        mindStatusText = 'You cast \'bless\'';
         // Spell logic
         break;
       case 'room':
         // Write spell trigger to specific chat
         firebaseUtil.writeGlobalChatMessage(username, 'spell:room', roomKey);
+        mindStatusText = 'You cast \'room\'';
         // Spell logic
         break;
       case 'intercept':
@@ -974,7 +989,12 @@ function castSpell(spellArgs) {
             // valid target player has oddball
             if (playersGlobalInventories[playerTarget].includes('oddball')) {
               const interceptRoll = Math.floor(Math.random() * 101);
-              const interceptSuccess = constants.gamemodes.oddball.interceptMaxChance;
+              const interceptMinChance = constants.gamemodes.oddball.interceptMinChance;
+              const interceptMaxChance = constants.gamemodes.oddball.interceptMaxChance;
+              const oddballMaxScore = constants.gamemodes.oddball.scoreMax;
+              const oddballScorePerScore = constants.gamemodes.oddball.scorePerScore;
+              // Decrease intercept success the higher the player's score
+              const interceptSuccess = interceptMaxChance - ((interceptMaxChance - interceptMinChance) * (playerOddballScore / (oddballMaxScore - oddballScorePerScore)));
               // intercept successful
               if (interceptRoll < interceptSuccess) {
                 // Remove oddball from target player's inventory
@@ -987,23 +1007,28 @@ function castSpell(spellArgs) {
                 // Update current player's inventory on server
                 updatePlayerInventoryServer(username, playerInventory);
 
+                mindStatusText = 'You intercepted the oddball!';
+
                 firebaseUtil.writeGlobalChatMessage('SERVER', 'THE ODDBALL HAS CHANGED HANDS', roomKey);
                 firebaseUtil.writeLocalChatMessage(roomKey, playerLocation.y, playerLocation.x, 'SERVER', username + ' HAS INTERCEPTED THE ODDBALL FROM ' + playerTarget);
               // intercept unsuccessful attempt
               } else {
                 firebaseUtil.writeLocalChatMessage(roomKey, playerLocation.y, playerLocation.x, 'SERVER', username + ' FAILED TO INTERCEPT THE ODDBALL FROM ' + playerTarget + '...');
+                mindStatusText = '\'intercept\' failed...';
               }
             // valid target player does not have oddball
             } else {
-              // TODO Update Mind status
+              mindStatusText = 'Target player does not have the oddball.';
             }
           // invalid target player
           } else {
-            // TODO Update Mind status
+            mindStatusText = 'Target player is invalid.';
           }
         // invalid usage
         } else {
-          // TODO Update Mind status
+          mindStatusText = 'Invalid usage of spell \'intercept\'';
+          mindStatusText += '\r\n';
+          mindStatusText += getHelpText('intercept');
         }
         break;
       case 'score':
@@ -1024,40 +1049,121 @@ function castSpell(spellArgs) {
             firebaseUtil.writeGlobalChatMessage('SERVER', oddballScoreGlobalMessageTrigger, roomKey);
             firebaseUtil.writeLocalChatMessage(roomKey, playerLocation.y, playerLocation.x, 'SERVER', username + ' HAS SCORED');
 
-            // Spawn new oddball
-            // TODO only run if player score is less than winning score
-            const minimumOddballSpawnDistance = constants.gamemodes.oddball.minimumStartingSpawnDistance;
-            let oddballSpawned = false;
-            while (!oddballSpawned) {
-              const oddballSpawnY = Math.floor(Math.random() * constants.mapHeight);
-              const oddballSpawnX = Math.floor(Math.random() * constants.mapWidth);
-              const startingSpaceY = playerLocation.y;
-              const startingSpaceX = playerLocation.x;
-              const oddballDistanceY = Math.abs(startingSpaceY - oddballSpawnY);
-              const oddballDistanceX = Math.abs(startingSpaceX - oddballSpawnX);
+            playerOddballScore += constants.gamemodes.oddball.scorePerScore;
+            mindStatusText = 'You scored the oddball!';
 
-              // If tile is valid and greater than or equal to the minimum starting spawn distance,
-              // Then spawn the oddball and mark tile as having oddball
-              if (mapReference[oddballSpawnY][oddballSpawnX].mapKey &&
-                  (oddballDistanceY + oddballDistanceX) >= minimumOddballSpawnDistance
-              ) {
-                oddballSpawned = true;
-                console.log('Oddball new spawn: ' + oddballSpawnY + ', ' + oddballSpawnX);
-                firebaseUtil.updateItemsLocal(roomKey, oddballSpawnY, oddballSpawnX, 'oddball', 1);
-                firebaseUtil.writeUpdateGlobalMapTileHasOddball(roomKey, playerLocation.y, playerLocation.x, oddballSpawnY, oddballSpawnX);
+            // Spawn new oddball (Only if player score is less than max score)
+            if (playerOddballScore < constants.gamemodes.oddball.scoreMax) {
+              const minimumOddballSpawnDistance = constants.gamemodes.oddball.minimumStartingSpawnDistance;
+              let oddballSpawned = false;
+              while (!oddballSpawned) {
+                const oddballSpawnY = Math.floor(Math.random() * constants.mapHeight);
+                const oddballSpawnX = Math.floor(Math.random() * constants.mapWidth);
+                const startingSpaceY = playerLocation.y;
+                const startingSpaceX = playerLocation.x;
+                const oddballDistanceY = Math.abs(startingSpaceY - oddballSpawnY);
+                const oddballDistanceX = Math.abs(startingSpaceX - oddballSpawnX);
+
+                // If tile is valid and greater than or equal to the minimum starting spawn distance,
+                // Then spawn the oddball and mark tile as having oddball
+                if (mapReference[oddballSpawnY][oddballSpawnX].mapKey &&
+                    (oddballDistanceY + oddballDistanceX) >= minimumOddballSpawnDistance
+                ) {
+                  oddballSpawned = true;
+                  console.log('Oddball new spawn: ' + oddballSpawnY + ', ' + oddballSpawnX);
+                  firebaseUtil.updateItemsLocal(roomKey, oddballSpawnY, oddballSpawnX, 'oddball', 1);
+                  firebaseUtil.writeUpdateGlobalMapTileHasOddball(roomKey, playerLocation.y, playerLocation.x, oddballSpawnY, oddballSpawnX);
+                }
               }
+            // Player won, game over
+            } else {
+              firebaseUtil.removeGlobalMapTileHasOddball(roomKey, playerLocation.y, playerLocation.x);
+              firebaseUtil.writeGlobalChatMessage('SERVER', username + ' WINS', roomKey);
+              mindStatusText = 'You won!';
             }
           // Score unsuccessful
           } else {
-            // TODO Update Mind status
+            mindStatusText = '\'score\' failed...';
           }
         // Invalid usage
         } else {
-          // TODO Update Mind status
+          mindStatusText = 'Invalid usage of spell \'score\'';
+          mindStatusText += '\r\n';
+          mindStatusText += getHelpText('score');
         }
         break;
     }
+  // You don't know that spell
+  } else {
+    mindStatusText = 'You don\'t know that spell...';
   }
+}
+
+function getHelpText(helpTarget) {
+  let helpText = '';
+  switch (helpTarget) {
+    case 'cast':
+      helpText += 'Usage: cast [spell] [arg1] [arg2]...';
+      helpText += '\r\n';
+      helpText += 'Description: Use to activate a learned spell.'
+      break;
+    case 'move':
+      helpText += 'Usage: move [direction]';
+      helpText += '\r\n';
+      helpText += 'Description: Use to move to an adjacent room in the given direction.';
+      helpText += ' Door must be available and open. Valid directions: up, north, right, east, down, south, left, west';
+      break;
+    case 'pickup':
+    case 'get':
+      helpText += 'Usage: ' + helpTarget + ' [item]';
+      helpText += '\r\n';
+      helpText += 'Description: Use to obtain an item from the list of items in the room.';
+      helpText += ' Same as ' + (helpTarget == 'pickup' ? 'get' : 'pickup');
+      break;
+    case 'drop':
+    case 'leave':
+      helpText += 'Usage: ' + helpTarget + ' [item]';
+      helpText += '\r\n';
+      helpText += 'Description: Use to leave an item from your inventory in the room.';
+      helpText += ' Same as ' + (helpTarget == 'drop' ? 'leave' : 'drop');
+      break;
+    case 'bless':
+      helpText += 'Usage: cast bless';
+      helpText += '\r\n';
+      helpText += 'Description: Use to send a fiendish symbol to all players.';
+      break;
+    case 'intercept':
+      helpText += 'Usage: cast intercept [target_player]';
+      helpText += '\r\n';
+      helpText += 'Description: Use to steal the oddball from another player in the same room.';
+      break;
+    case 'score':
+      helpText += 'Usage: cast score';
+      helpText += '\r\n';
+      helpText += 'Description: Use to score the oddball in the target room.';
+      helpText += ' Must have the oddball and be in the target room.';
+      break;
+  }
+
+  // Build help for item
+  if (!helpText) {
+    if (constants.items[helpTarget]) {
+      // Add item description
+      helpText += 'Description: ' + constants.items[helpTarget].description;
+      // If item deals damage, add damage
+      if (constants.items[helpTarget]['damage']) {
+        helpText += '\r\n';
+        helpText += 'Damage: ' + constants.items[helpTarget].damage;
+      }
+    }
+  }
+
+  // Default help error
+  if (!helpText) {
+    helpText += 'Invalid command.';
+  }
+
+  return helpText;
 }
 
 function movePlayer(direction) {
@@ -1066,15 +1172,21 @@ function movePlayer(direction) {
   if ((direction == 'NORTH' || direction == 'UP') && playerLocation.y > 0
         && mapReference[playerLocation.y][playerLocation.x].mapKey.includes('N')) {
     playerEnterRoom(playerLocation.y - 1, playerLocation.x);
+    mindStatusText = 'You moved ' + direction.trim().toLowerCase() + '.';
   } else if ((direction == 'EAST' || direction == 'RIGHT') && playerLocation.x < (constants.mapWidth - 1)
                 && mapReference[playerLocation.y][playerLocation.x].mapKey.includes('E')) {
     playerEnterRoom(playerLocation.y, playerLocation.x + 1);
+    mindStatusText = 'You moved ' + direction.trim().toLowerCase() + '.';
   } else if ((direction == 'SOUTH' || direction == 'DOWN') && playerLocation.y < (constants.mapHeight - 1)
                 && mapReference[playerLocation.y][playerLocation.x].mapKey.includes('S')) {
     playerEnterRoom(playerLocation.y + 1, playerLocation.x);
+    mindStatusText = 'You moved ' + direction.trim().toLowerCase() + '.';
   } else if ((direction == 'WEST' || direction == 'LEFT') && playerLocation.x > 0
                 && mapReference[playerLocation.y][playerLocation.x].mapKey.includes('W')) {
     playerEnterRoom(playerLocation.y, playerLocation.x - 1);
+    mindStatusText = 'You moved ' + direction.trim().toLowerCase() + '.';
+  } else {
+    mindStatusText = 'You can\'t move that way...';
   }
 }
 
@@ -1086,6 +1198,9 @@ function pickupItem(item) {
         const count = serverItem.count - 1;
         playerSpells.push(constants.items[item].spell);
         firebaseUtil.updateItemsLocal(roomKey, playerLocation.y, playerLocation.x, item, count);
+        mindStatusText = 'You learned the spell \'' + constants.items[item].spell + '\'.';
+      } else {
+        mindStatusText = 'You already know the spell \'' + constants.items[item].spell + '\'.';
       }
     } else {
       const count = serverItem.count - 1;
@@ -1096,14 +1211,17 @@ function pickupItem(item) {
           case 'oddball':
             // Triggers on oddball pickup
             oddballPickupTrigger();
+            mindStatusText = 'You obtained the oddball.';
             break;
         }
+      } else {
+        mindStatusText = 'You obtained a' + (utils.isVowel(item.charAt(0)) ? 'n' : '') + ' ' + item + '.';
       }
     }
 
     updatePlayerInventoryServer(username, playerInventory);
-    // Rebuild Mind Screen
-    buildMindText();
+  } else {
+    mindStatusText = 'A' + (utils.isVowel(item.charAt(0)) ? 'n' : '') + ' ' + item + ' isn\'t in the room.';
   }
 }
 
@@ -1150,7 +1268,9 @@ function dropItem(item) {
     playerInventory.splice(playerInventory.findIndex((i) => i == item), 1);
     firebaseUtil.updateItemsLocal(roomKey, playerLocation.y, playerLocation.x, item, count);
     updatePlayerInventoryServer(username, playerInventory);
-    buildMindText();
+    mindStatusText = 'You left a' + (utils.isVowel(item.charAt(0)) ? 'n' : '') + ' ' + item + ' in the room.';
+  } else {
+    mindStatusText = 'You don\'t have a' + (utils.isVowel(item.charAt(0)) ? 'n' : '') + ' ' + item + ' to drop.';
   }
 }
 
@@ -1251,6 +1371,22 @@ function buildMindText() {
     }
 
     mindText += '\r\n' + itemAndSpellRow;
+  }
+
+  // Oddball Score
+  if (gamemode == 'oddball') {
+    // Two line spacer
+    mindText += '\r\n\r\n';
+    // Display player score
+    mindText += 'ODDBALL SCORE: ' + playerOddballScore;
+  }
+
+  // Display mind status
+  if (mindText) {
+    // Two line spacer
+    mindText += '\r\n\r\n';
+    // Display mind text
+    mindText += '<span class="mind-status">' + mindStatusText + '</span>';
   }
 
   mindChatElementRef.querySelector('.mind-text').innerHTML = mindText;

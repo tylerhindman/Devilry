@@ -150,6 +150,11 @@ export function removeGlobalMapTileOddballTarget (roomName, y, x) {
   const db = getDatabase();
   set(ref(db, roomName + '/map/tileData/' + y + '_' + x + '/oddballTarget'), false);
 }
+
+export function removeGlobalMapTileHasOddball (roomName, y, x) {
+  const db = getDatabase();
+  set(ref(db, roomName + '/map/tileData/' + y + '_' + x + '/hasOddball'), false);
+}
 //#endregion
 
 //#region LOCALCHAT

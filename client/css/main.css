@@ -182,6 +182,10 @@ body {
   color: #208c71;
 }
 
+.mind-status {
+  text-wrap: wrap;
+}
+
 /********************Map**************************/
 
 .map-zoomed-in-body {
