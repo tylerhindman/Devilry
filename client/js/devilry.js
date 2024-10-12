@@ -981,54 +981,46 @@ function castSpell(spellArgs) {
         // Spell logic
         break;
       case 'intercept':
-        // valid usage
-        if (spellArgs.length == 2) {
-          const playerTarget = spellArgs[1];
-          // valid target player (not current player, valid player in game, target player is in room)
-          if (playerTarget != username && playersGlobal[playerTarget] && playersLocal[playerTarget]) {
-            // valid target player has oddball
-            if (playersGlobalInventories[playerTarget].includes('oddball')) {
-              const interceptRoll = Math.floor(Math.random() * 101);
-              const interceptMinChance = constants.gamemodes.oddball.interceptMinChance;
-              const interceptMaxChance = constants.gamemodes.oddball.interceptMaxChance;
-              const oddballMaxScore = constants.gamemodes.oddball.scoreMax;
-              const oddballScorePerScore = constants.gamemodes.oddball.scorePerScore;
-              // Decrease intercept success the higher the player's score
-              const interceptSuccess = interceptMaxChance - ((interceptMaxChance - interceptMinChance) * (playerOddballScore / (oddballMaxScore - oddballScorePerScore)));
-              // intercept successful
-              if (interceptRoll < interceptSuccess) {
-                // Remove oddball from target player's inventory
-                const targetPlayerInventory = playersGlobalInventories[playerTarget];
-                targetPlayerInventory.splice(targetPlayerInventory.findIndex((item) => item === 'oddball'), 1);
-                // Update target player's inventory on server
-                updatePlayerInventoryServer(playerTarget, targetPlayerInventory);
-                // Add oddball to current player's inventory
-                playerInventory.push('oddball');
-                // Update current player's inventory on server
-                updatePlayerInventoryServer(username, playerInventory);
-
-                mindStatusText = 'You intercepted the oddball!';
-
-                firebaseUtil.writeGlobalChatMessage('SERVER', 'THE ODDBALL HAS CHANGED HANDS', roomKey);
-                firebaseUtil.writeLocalChatMessage(roomKey, playerLocation.y, playerLocation.x, 'SERVER', username + ' HAS INTERCEPTED THE ODDBALL FROM ' + playerTarget);
-              // intercept unsuccessful attempt
-              } else {
-                firebaseUtil.writeLocalChatMessage(roomKey, playerLocation.y, playerLocation.x, 'SERVER', username + ' FAILED TO INTERCEPT THE ODDBALL FROM ' + playerTarget + '...');
-                mindStatusText = '\'intercept\' failed...';
-              }
-            // valid target player does not have oddball
-            } else {
-              mindStatusText = 'Target player does not have the oddball.';
-            }
-          // invalid target player
-          } else {
-            mindStatusText = 'Target player is invalid.';
+        let playerTarget = '';
+        // Find player with oddball in room
+        for (let playerName in playersLocal) {
+          if (playersGlobalInventories[playerName] && playersGlobalInventories[playerName].includes('oddball')) {
+            playerTarget = playerName;
           }
-        // invalid usage
+        }
+        // valid target player (not current player, valid player in game, target player is in room)
+        if (playerTarget && playerTarget != username) {
+          const interceptRoll = Math.floor(Math.random() * 101);
+          const interceptMinChance = constants.gamemodes.oddball.interceptMinChance;
+          const interceptMaxChance = constants.gamemodes.oddball.interceptMaxChance;
+          const oddballMaxScore = constants.gamemodes.oddball.scoreMax;
+          const oddballScorePerScore = constants.gamemodes.oddball.scorePerScore;
+          // Decrease intercept success the higher the player's score
+          const interceptSuccess = interceptMaxChance - ((interceptMaxChance - interceptMinChance) * (playerOddballScore / (oddballMaxScore - oddballScorePerScore)));
+          // intercept successful
+          if (interceptRoll < interceptSuccess) {
+            // Remove oddball from target player's inventory
+            const targetPlayerInventory = playersGlobalInventories[playerTarget];
+            targetPlayerInventory.splice(targetPlayerInventory.findIndex((item) => item === 'oddball'), 1);
+            // Update target player's inventory on server
+            updatePlayerInventoryServer(playerTarget, targetPlayerInventory);
+            // Add oddball to current player's inventory
+            playerInventory.push('oddball');
+            // Update current player's inventory on server
+            updatePlayerInventoryServer(username, playerInventory);
+
+            mindStatusText = 'You intercepted the oddball!';
+
+            firebaseUtil.writeGlobalChatMessage('SERVER', 'THE ODDBALL HAS CHANGED HANDS', roomKey);
+            firebaseUtil.writeLocalChatMessage(roomKey, playerLocation.y, playerLocation.x, 'SERVER', username + ' HAS INTERCEPTED THE ODDBALL FROM ' + playerTarget);
+          // intercept unsuccessful attempt
+          } else {
+            firebaseUtil.writeLocalChatMessage(roomKey, playerLocation.y, playerLocation.x, 'SERVER', username + ' FAILED TO INTERCEPT THE ODDBALL FROM ' + playerTarget + '...');
+            mindStatusText = '\'intercept\' failed...';
+          }
+        // invalid target player
         } else {
-          mindStatusText = 'Invalid usage of spell \'intercept\'';
-          mindStatusText += '\r\n';
-          mindStatusText += getHelpText('intercept');
+          mindStatusText = 'There\'s no player in the room to intercept the oddball from.';
         }
         break;
       case 'score':
@@ -1133,7 +1125,7 @@ function getHelpText(helpTarget) {
       helpText += 'Description: Use to send a fiendish symbol to all players.';
       break;
     case 'intercept':
-      helpText += 'Usage: cast intercept [target_player]';
+      helpText += 'Usage: cast intercept';
       helpText += '\r\n';
       helpText += 'Description: Use to steal the oddball from another player in the same room.';
       break;
